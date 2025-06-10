@@ -8,7 +8,7 @@ const player = {
     speed: 200, // pixels per second
     velocityY: 0,
     isGrounded: false,
-    jumpStrength: -15 // Negative because Y is 0 at top
+    jumpStrength: -18 // Negative because Y is 0 at top, increased from -15
 };
 
 // Player update logic
