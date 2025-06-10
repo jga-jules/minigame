@@ -4,6 +4,7 @@ const ctx = canvas.getContext('2d');
 // Game state variables
 let score = 0;
 let totalClues = 0;
+let collectedCluesCount = 0; // Made global for access in draw()
 let gameWon = false;
 let lastTime = 0;
 
@@ -73,11 +74,16 @@ function update(deltaTime) {
             player.y < clue.y + clue.height &&
             player.y + player.height > clue.y) {
             clue.collected = true;
-            score++;
-            console.log('Clue collected! Score: ' + score);
-            if (score === totalClues) {
+            score += clue.points;
+            console.log('Clue collected! Points: ' + clue.points + ' Total Score: ' + score);
+            // Win condition is still based on collecting ALL clues, not reaching a certain score.
+            // To check this, we count collected clues.
+            collectedCluesCount = 0; // Update global variable
+            clues.forEach(c => { if (c.collected) collectedCluesCount++; });
+
+            if (collectedCluesCount === totalClues) {
                 gameWon = true;
-                console.log('All clues collected! You Win!');
+                console.log('All clues collected! You Win! Final Score: ' + score);
             }
         }
     });
@@ -85,9 +91,27 @@ function update(deltaTime) {
 
 // Draw all game elements
 function draw() {
-    // Clear the canvas
-    ctx.fillStyle = 'black';
+    // Clear the canvas - New background color
+    ctx.fillStyle = '#D3D3D3'; // Light Gray
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Experimental: Background text (C++ keywords)
+    ctx.fillStyle = '#E0E0E0'; // Very light gray, slightly darker than background
+    ctx.font = 'bold 72px Arial';
+    ctx.fillText('class', canvas.width * 0.1, canvas.height * 0.3);
+    ctx.fillText('void', canvas.width * 0.6, canvas.height * 0.5);
+    ctx.fillText('int', canvas.width * 0.3, canvas.height * 0.8);
+    // Ensure text is drawn before other elements if it should be "behind" them.
+
+    // Experimental: Background lines
+    ctx.strokeStyle = '#C0C0C0'; // Silver
+    ctx.lineWidth = 1;
+    for (let y = 0; y < canvas.height; y += 25) {
+        ctx.beginPath();
+        ctx.moveTo(0, y + 0.5); // +0.5 for sharper lines
+        ctx.lineTo(canvas.width, y + 0.5);
+        ctx.stroke();
+    }
 
     // Draw environment elements
     drawPlatforms(ctx);
@@ -96,10 +120,12 @@ function draw() {
     // Draw player
     drawPlayer(ctx);
 
-    // Draw Score
-    ctx.fillStyle = 'white';
-    ctx.font = '20px Arial';
-    ctx.fillText('Score: ' + score + ' / ' + totalClues, 10, 25);
+    // Draw Score and Bug Count
+    ctx.fillStyle = '#000000'; // Black for better contrast on light gray background
+    ctx.font = '18px Arial'; // Slightly smaller font
+    ctx.fillText('Score: ' + score, 10, 25);
+    ctx.fillText('Bugs Left: ' + (totalClues - collectedCluesCount) + ' / ' + totalClues, 10, 50);
+
 
     // Draw Win Message
     if (gameWon) {
@@ -108,7 +134,7 @@ function draw() {
         ctx.fillStyle = 'lime';
         ctx.font = '48px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText('You Win!', canvas.width / 2, canvas.height / 2 - 30);
+        ctx.fillText('You Win! Score: ' + score, canvas.width / 2, canvas.height / 2 - 30);
         ctx.font = '24px Arial';
         ctx.fillText('Press R to Restart', canvas.width / 2, canvas.height / 2 + 20);
         ctx.textAlign = 'left'; // Reset alignment
@@ -123,6 +149,7 @@ function resetGame() {
     player.isGrounded = false; // Will be set true by ground collision in first update
 
     score = 0;
+    collectedCluesCount = 0; // Reset collected clues count
     gameWon = false;
 
     // Reset clues (environment.js's clues array is modified directly)

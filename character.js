@@ -3,8 +3,8 @@ const player = {
     x: 0, // Initial position will be set by resetGame or initGameElements
     y: 0,
     width: 40,
-    height: 40,
-    color: '#3498db', // Brighter blue
+    height: 40, // Keeping size, focusing on color for this step
+    color: '#8B4513', // SaddleBrown for a detective/trenchcoat look
     speed: 200, // pixels per second
     velocityY: 0,
     isGrounded: false,
