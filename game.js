@@ -170,6 +170,7 @@ function initializeGame() {
     resetGame(); // Sets player initial state, score, etc.
 
     console.log("Game initialized with " + totalClues + " clues.");
+    lastTime = performance.now(); // Reset lastTime before starting the loop
     requestAnimationFrame(gameLoop); // Start the game loop
 }
 

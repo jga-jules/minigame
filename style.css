@@ -1,8 +1,9 @@
 body {
     margin: 0;
     overflow: hidden;
-    background-color: #000;
+    background-color: #D3D3D3; /* Light Gray, same as platformer game area */
 }
 canvas {
     display: block;
+    /* margin: auto; /* Uncomment if canvas is not full screen and needs centering */
 }
