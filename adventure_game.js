@@ -8,6 +8,7 @@ let bugsFoundCount = 0;
 let totalBugsInScene = 0;
 let gameWon = false;
 let foundBugsInventory = [];
+let lastTime = 0; // Declare lastTime globally
 
 // Inventory area parameters
 const INVENTORY_WIDTH = 200;
@@ -17,8 +18,21 @@ const INVENTORY_HEIGHT = canvas.height;
 
 
 function gameLoop(timestamp) {
+    if (lastTime === undefined || lastTime === 0) { // Handle first frame initialization or reset robustly
+        lastTime = timestamp;
+    }
+    const deltaTime = (timestamp - lastTime) / 1000; // deltaTime in seconds
+    lastTime = timestamp;
+
+    // --- Game Logic Updates ---
+    if (detective) {
+        detective.update(deltaTime); // Call detective's update method
+    }
+    // (Other game logic updates could go here in the future)
+
+    // --- Drawing ---
     // Clear canvas (done by scene.draw now)
-    // ctx.clearRect(0, 0, canvas.width, canvas.height); // Or fill with a general bg if scene bg is transparent
+    // ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (currentScene) {
         currentScene.draw(ctx);
@@ -157,6 +171,7 @@ function initGame() {
     currentScene.addHotspot(hotspot2);
 
     console.log("Adventure game initialized. Detective, scene, hotspots, and bugs created.");
+    lastTime = performance.now(); // Initialize lastTime before starting the loop
     gameLoop(); // Start the game loop
 }
 
