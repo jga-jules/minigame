@@ -39,11 +39,14 @@ class Scene {
         ctx.fillText("for(auto& bug : bugs) {", 420, 500);
         ctx.fillText("  fix(bug);", 440, 550);
 
-        // 2. Draw found bugs
+        // 2. Draw found bugs - This section is now removed/commented out.
+        //    Bugs will be drawn in the inventory UI, not directly on the scene.
+        /*
         this.bugs.forEach(bug => {
             // The bug.draw method itself checks if it's found
             bug.draw(ctx);
         });
+        */
 
         // 3. Draw detective (for later)
         if (this.detective) {

@@ -8,9 +8,31 @@ class Detective {
     }
 
     moveTo(x, y) {
-        // Center the detective on the click by adjusting for its width/height
-        this.x = x - this.width / 2;
-        this.y = y - this.height / 2;
+        const canvasWidth = 800; // Hardcoded canvas width
+        const inventoryWidth = 200; // Hardcoded inventory width
+        const effectiveSceneWidth = canvasWidth - inventoryWidth;
+        const canvasHeight = 600; // Hardcoded canvas height
+
+        let targetX = x - this.width / 2;
+        let targetY = y - this.height / 2;
+
+        // Clamp X position to stay out of the inventory area
+        if (targetX + this.width > effectiveSceneWidth) {
+            targetX = effectiveSceneWidth - this.width;
+        }
+        if (targetX < 0) { // Also clamp to left edge
+            targetX = 0;
+        }
+        // Clamp Y position to stay within canvas height
+        if (targetY + this.height > canvasHeight) {
+            targetY = canvasHeight - this.height;
+        }
+        if (targetY < 0) {
+            targetY = 0;
+        }
+
+        this.x = targetX;
+        this.y = targetY;
     }
 
     draw(ctx) {
