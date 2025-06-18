@@ -64,8 +64,83 @@ class Detective {
     }
 
     draw(ctx) {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Icon colors
+        const hatColor = this.color; // Should be #8B4513 SaddleBrown
+        const magnifierRimColor = '#5A5A5A';
+        const magnifierLensColor = '#E0E0E0';
+        const pointerColor = '#000000';
+
+        // Base coordinates for drawing relative to this.x, this.y
+        const baseX = this.x;
+        const baseY = this.y;
+
+        // Hat (Fedora style) - Approx top 25px of height
+        // All hat parts will use hatColor
+        ctx.fillStyle = hatColor;
+        ctx.strokeStyle = '#000000'; // Optional: thin black outline for hat parts
+        ctx.lineWidth = 1;
+
+        // Crown (top part of hat)
+        ctx.beginPath();
+        ctx.moveTo(baseX + 5, baseY + 20); // Bottom-left of crown
+        ctx.lineTo(baseX + 3, baseY + 10); // Slant in
+        ctx.quadraticCurveTo(baseX + 15, baseY - 5, baseX + 27, baseY + 10); // Rounded top with pinch
+        ctx.lineTo(baseX + 25, baseY + 20); // Bottom-right of crown
+        ctx.closePath();
+        ctx.fill();
+        // ctx.stroke(); // Optional outline
+
+        // Brim (ellipse or wide arc)
+        ctx.beginPath();
+        // Use ellipse: ctx.ellipse(centerX, centerY, radiusX, radiusY, rotation, startAngle, endAngle);
+        // Centered at baseX + 15, y at baseY + 20 (bottom of crown), width 30 (radiusX 15), height 8 (radiusY 4)
+        ctx.ellipse(baseX + 15, baseY + 21, 14, 5, 0, 0, 2 * Math.PI);
+        ctx.fill();
+        // ctx.stroke(); // Optional outline
+
+        // Hatband (optional simple rectangle)
+        ctx.fillStyle = '#000000'; // Black hatband
+        ctx.fillRect(baseX + 4, baseY + 18, 22, 3);
+
+
+        // Magnifier - Positioned below hat, slightly to the left
+        const magnifierCenterX = baseX + 10;
+        const magnifierCenterY = baseY + 35; // y-center of the lens
+        const magnifierRadius = 7;
+
+        // Magnifier Lens
+        ctx.fillStyle = magnifierLensColor;
+        ctx.beginPath();
+        ctx.arc(magnifierCenterX, magnifierCenterY, magnifierRadius, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Magnifier Rim
+        ctx.strokeStyle = magnifierRimColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(magnifierCenterX, magnifierCenterY, magnifierRadius, 0, 2 * Math.PI);
+        ctx.stroke();
+
+        // Magnifier Handle
+        ctx.fillStyle = magnifierRimColor; // Use rim color for handle too for consistency
+        ctx.beginPath();
+        // A small rectangle attached to the bottom-left of the lens rim
+        // Start from approx: magnifierCenterX - radius * 0.7, magnifierCenterY + radius * 0.7
+        // Angled handle would be better, but for simplicity:
+        ctx.fillRect(magnifierCenterX - 2, magnifierCenterY + magnifierRadius -1 , 4, 10); // simple vertical handle extending from bottom
+
+
+        // Pointer (Arrow) - To the right of magnifier, pointing right
+        const arrowTipX = baseX + 28; // Point further right (original was +28)
+        const arrowYCenter = baseY + 35; // Align with magnifier center Y
+
+        ctx.fillStyle = pointerColor;
+        ctx.beginPath();
+        ctx.moveTo(arrowTipX, arrowYCenter); // Tip
+        ctx.lineTo(baseX + 22, arrowYCenter - 4); // Top-base (original was +22)
+        ctx.lineTo(baseX + 22, arrowYCenter + 4); // Bottom-base (original was +22)
+        ctx.closePath();
+        ctx.fill();
     }
 }
 
