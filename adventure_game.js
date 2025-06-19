@@ -221,65 +221,72 @@ function initGame() {
     scene1.addBug(o1_s1);
     scene1.addBug(g1_s1);
 
-    const hs_v1_s1 = new Hotspot(50, 160, 100, 50, function() { findBugAction(v1_s1); }, "HS_Find_V1_S1");
-    const hs_o1_s1 = new Hotspot(50, 210, 100, 50, function() { findBugAction(o1_s1); }, "HS_Find_O1_S1");
+    const hs_v1_s1 = new Hotspot(50, 160, 100, 50,
+        function() { findBugAction(v1_s1); }, "HS_Find_V1_S1",
+        null, null, null,
+        'bugStrongbox', v1_s1);
+    const hs_o1_s1 = new Hotspot(50, 210, 100, 50,
+        function() { findBugAction(o1_s1); }, "HS_Find_O1_S1",
+        null, null, null,
+        'bugStrongbox', o1_s1);
     scene1.addHotspot(hs_v1_s1);
     scene1.addHotspot(hs_o1_s1);
 
-    const hs_puzzle_for_g1 = new Hotspot(
-        50, 260, 100, 50,
-        function() {
-            console.log("A strange mechanism. It seems to be missing a part.");
-        },
+    const hs_puzzle_for_g1 = new Hotspot(50, 260, 100, 50,
+        function() { console.log("A strange mechanism. It seems to be missing a part."); },
         "HS_Puzzle_GrayBugLocation",
-        r1_s2.name, // REQUIRED ITEM: Red Bug R1 from Scene 2
-        function() { // ON SUCCESS ACTION
+        r1_s2.name,
+        function() {
             console.log("The Red Bug R1 fits perfectly! Gray Bug G1 revealed!");
             findBugAction(g1_s1);
-            // hs_puzzle_for_g1.isEnabled = false; // Consider 'this' context if enabling/disabling
         },
-        function(selectedItem) { // ON FAILURE ACTION
-            if (selectedItem) {
-                console.log(`Using ${selectedItem.name} on the mechanism doesn't work.`);
-            } else {
-                // This message is now effectively handled by the primary onClickAction.
-                // console.log("That item doesn't seem to fit here.");
-            }
-        }
-    );
+        function(selectedItem) {
+            if (selectedItem) { console.log(`Using ${selectedItem.name} on the mechanism doesn't work.`); }
+            else { console.log("This looks like it needs something specific."); }
+        },
+        'bugStrongbox', g1_s1);
     scene1.addHotspot(hs_puzzle_for_g1);
 
-    const navHotspot_s1_to_s2 = new Hotspot( // Navigation for Scene 1
+    const navHotspot_s1_to_s2 = new Hotspot(
         canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25,
         60, 50,
         function() { goToScene('scene2_id', 'entryFromS1'); },
-        "NAV_S1_to_S2"
-    );
+        "NAV_S1_to_S2",
+        null, null, null,
+        'door', null);
     scene1.addHotspot(navHotspot_s1_to_s2);
 
     // --- SCENE 2 Bugs & Hotspots ---
     scene2.bugs = []; scene2.hotspots = [];
-    scene2.addBug(r1_s2); // Puzzle key item
+    scene2.addBug(r1_s2);
     scene2.addBug(v2_s2);
 
-    const hs_r1_s2 = new Hotspot(100, 180, 100, 50, function() { findBugAction(r1_s2); }, "HS_Find_R1_S2");
-    const hs_v2_s2 = new Hotspot(100, 230, 100, 50, function() { findBugAction(v2_s2); }, "HS_Find_V2_S2");
-    scene2.addHotspot(hs_r1_s2);
-    scene2.addHotspot(hs_v2_s2);
+    const hs_r1_s2_hotspot = new Hotspot(100, 180, 100, 50, // Renamed var to avoid conflict with bug var
+        function() { findBugAction(r1_s2); }, "HS_Find_R1_S2",
+        null, null, null,
+        'bugStrongbox', r1_s2);
+    const hs_v2_s2_hotspot = new Hotspot(100, 230, 100, 50, // Renamed var
+        function() { findBugAction(v2_s2); }, "HS_Find_V2_S2",
+        null, null, null,
+        'bugStrongbox', v2_s2);
+    scene2.addHotspot(hs_r1_s2_hotspot);
+    scene2.addHotspot(hs_v2_s2_hotspot);
 
-    const navHotspot_s2_to_s1 = new Hotspot( // Navigation for Scene 2
+    const navHotspot_s2_to_s1 = new Hotspot(
         10, canvas.height / 2 - 25,
         60, 50,
         function() { goToScene('scene1_id', 'entryFromS2'); },
-        "NAV_S2_to_S1"
-    );
+        "NAV_S2_to_S1",
+        null, null, null,
+        'door', null);
     scene2.addHotspot(navHotspot_s2_to_s1);
     const navHotspot_s2_to_s3 = new Hotspot(
         canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25,
         60, 50,
         function() { goToScene('scene3_id', 'entryFromS2'); },
-        "NAV_S2_to_S3"
-    );
+        "NAV_S2_to_S3",
+        null, null, null,
+        'door', null);
     scene2.addHotspot(navHotspot_s2_to_s3);
 
     // --- SCENE 3 Bugs & Hotspots ---
@@ -287,17 +294,24 @@ function initGame() {
     scene3.addBug(r2_s3);
     scene3.addBug(g2_s3);
 
-    const hs_r2_s3 = new Hotspot(150, 180, 100, 50, function() { findBugAction(r2_s3); }, "HS_Find_R2_S3");
-    const hs_g2_s3 = new Hotspot(150, 230, 100, 50, function() { findBugAction(g2_s3); }, "HS_Find_G2_S3");
-    scene3.addHotspot(hs_r2_s3);
-    scene3.addHotspot(hs_g2_s3);
+    const hs_r2_s3_hotspot = new Hotspot(150, 180, 100, 50, // Renamed var
+        function() { findBugAction(r2_s3); }, "HS_Find_R2_S3",
+        null, null, null,
+        'bugStrongbox', r2_s3);
+    const hs_g2_s3_hotspot = new Hotspot(150, 230, 100, 50, // Renamed var
+        function() { findBugAction(g2_s3); }, "HS_Find_G2_S3",
+        null, null, null,
+        'bugStrongbox', g2_s3);
+    scene3.addHotspot(hs_r2_s3_hotspot);
+    scene3.addHotspot(hs_g2_s3_hotspot);
 
-    const navHotspot_s3_to_s2 = new Hotspot( // Navigation for Scene 3
+    const navHotspot_s3_to_s2 = new Hotspot(
         10, canvas.height / 2 - 25,
         60, 50,
         function() { goToScene('scene2_id', 'entryFromS3'); },
-        "NAV_S3_to_S2"
-    );
+        "NAV_S3_to_S2",
+        null, null, null,
+        'door', null);
     scene3.addHotspot(navHotspot_s3_to_s2);
 
     // Calculate totalBugsInGame after all scenes and their bugs are defined
