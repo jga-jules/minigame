@@ -6,8 +6,10 @@ let detective = null;
 const gameScenes = {}; // Collection of all scenes
 
 let score = 0;
-let bugsFoundCount = 0;
-let totalBugsInGame = 0;  // Renamed from totalBugsInScene
+// let totalBugsInGame = 0; // Removed
+let winnableItemsInInventoryCount = 0; // New name for clarity
+const winnableItemNames = []; // Names of items that count towards winning
+let totalWinnableItems = 0;   // Length of winnableItemNames
 let gameWon = false;
 let foundBugsInventory = [];
 let selectedInventoryItem = null; // For storing the currently selected bug from inventory
@@ -64,7 +66,7 @@ function drawUI(ctx) {
         uiLineY += uiLineHeight;
     }
 
-    ctx.fillText(`Bugs Found: ${bugsFoundCount} / ${totalBugsInGame}`, 10, uiLineY);
+    ctx.fillText(`Found: ${winnableItemsInInventoryCount} / ${totalWinnableItems}`, 10, uiLineY);
     // uiLineY += uiLineHeight; // Increment if more lines follow here
 
     // --- Inventory Panel (Right Side) ---
@@ -130,12 +132,28 @@ function drawUI(ctx) {
     }
 }
 
+function updateWinnableItemsCount() {
+    winnableItemsInInventoryCount = 0;
+    for (const itemInInventory of foundBugsInventory) {
+        if (winnableItemNames.includes(itemInInventory.name)) {
+            winnableItemsInInventoryCount++;
+        }
+    }
+    // Check for win condition here, after count is updated
+    if (winnableItemsInInventoryCount === totalWinnableItems) {
+        if (!gameWon) { // Prevent multiple win triggers
+            gameWon = true;
+            console.log("All winnable items acquired! Game Won! Final Score: " + score);
+        }
+    }
+}
+
 
 function initGame() {
     // Reset game state variables
     score = 0;
-    bugsFoundCount = 0;
-    // totalBugsInGame will be calculated after scenes are populated
+    winnableItemsInInventoryCount = 0; // Reset new counter
+    // totalWinnableItems will be set after winnableItemNames is populated below
     gameWon = false;
     foundBugsInventory = []; // Clear inventory on game start/reset
     selectedInventoryItem = null; // Reset selected item on game start/restart
@@ -209,9 +227,15 @@ function initGame() {
     const pointsRed = 40, pointsGray = 30, pointsOrange = 20, pointsGreen = 10;
 
     // 1. Declare all bug variables
-    let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3; // Changed variable names for clarity
+    let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
+    let vio1_s2, vio2_s3; // New Violet Bugs
+
+    // Item Combination Recipes
+    const itemCombinations = [];
 
     // 2. Instantiate all Bug objects
+    const pointsViolet = 0; // Violet fragments are initially 0 points
+
     v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1");
     o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1");
     g1_s1 = new Bug(100, 280, 'gray', pointsGray, "Gray Bug G1"); // Found by puzzle
@@ -221,6 +245,9 @@ function initGame() {
 
     r2_s3 = new Bug(200, 200, 'red', pointsRed, "Red Bug R2");
     g2_s3 = new Bug(200, 250, 'gray', pointsGray, "Gray Bug G2");
+
+    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, "Violet Fragment Alpha"); // BlueViolet color
+    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, "Violet Fragment Beta");
 
     // --- SCENE 1 Bugs & Hotspots ---
     scene1.bugs = []; scene1.hotspots = [];
@@ -267,17 +294,23 @@ function initGame() {
     scene2.bugs = []; scene2.hotspots = [];
     scene2.addBug(r1_s2);
     scene2.addBug(v2_s2);
+    scene2.addBug(vio1_s2); // Add new violet bug to Scene 2
 
-    const hs_r1_s2_hotspot = new Hotspot(100, 180, 100, 50, // Renamed var to avoid conflict with bug var
+    const hs_r1_s2_hotspot = new Hotspot(100, 180, 100, 50,
         function() { findBugAction(r1_s2); }, "HS_Find_R1_S2",
         null, null, null,
         'bugStrongbox', r1_s2);
-    const hs_v2_s2_hotspot = new Hotspot(100, 230, 100, 50, // Renamed var
+    const hs_v2_s2_hotspot = new Hotspot(100, 230, 100, 50,
         function() { findBugAction(v2_s2); }, "HS_Find_V2_S2",
         null, null, null,
         'bugStrongbox', v2_s2);
+    const hs_vio1_s2 = new Hotspot(200, 130, 100, 50,
+        function() { findBugAction(vio1_s2); }, "HS_Find_Vio1_S2",
+        null, null, null,
+        'bugStrongbox', vio1_s2);
     scene2.addHotspot(hs_r1_s2_hotspot);
     scene2.addHotspot(hs_v2_s2_hotspot);
+    scene2.addHotspot(hs_vio1_s2);
 
     const navHotspot_s2_to_s1 = new Hotspot(
         10, canvas.height / 2 - 25,
@@ -300,17 +333,23 @@ function initGame() {
     scene3.bugs = []; scene3.hotspots = [];
     scene3.addBug(r2_s3);
     scene3.addBug(g2_s3);
+    scene3.addBug(vio2_s3); // Add new violet bug to Scene 3
 
-    const hs_r2_s3_hotspot = new Hotspot(150, 180, 100, 50, // Renamed var
+    const hs_r2_s3_hotspot = new Hotspot(150, 180, 100, 50,
         function() { findBugAction(r2_s3); }, "HS_Find_R2_S3",
         null, null, null,
         'bugStrongbox', r2_s3);
-    const hs_g2_s3_hotspot = new Hotspot(150, 230, 100, 50, // Renamed var
+    const hs_g2_s3_hotspot = new Hotspot(150, 230, 100, 50,
         function() { findBugAction(g2_s3); }, "HS_Find_G2_S3",
         null, null, null,
         'bugStrongbox', g2_s3);
+    const hs_vio2_s3 = new Hotspot(250, 130, 100, 50,
+        function() { findBugAction(vio2_s3); }, "HS_Find_Vio2_S3",
+        null, null, null,
+        'bugStrongbox', vio2_s3);
     scene3.addHotspot(hs_r2_s3_hotspot);
     scene3.addHotspot(hs_g2_s3_hotspot);
+    scene3.addHotspot(hs_vio2_s3);
 
     const navHotspot_s3_to_s2 = new Hotspot(
         10, canvas.height / 2 - 25,
@@ -321,32 +360,87 @@ function initGame() {
         'door', null);
     scene3.addHotspot(navHotspot_s3_to_s2);
 
-    // Calculate totalBugsInGame after all scenes and their bugs are defined
-    totalBugsInGame = 0;
-    for (const sceneId_iter in gameScenes) {
-        if (gameScenes.hasOwnProperty(sceneId_iter)) {
-            totalBugsInGame += gameScenes[sceneId_iter].bugs.length;
+    // Populate winnableItemNames (after bug names are defined and scenes are set up)
+    winnableItemNames.length = 0; // Clear for restarts
+    winnableItemNames.push("Green Bug V1", "Orange Bug O1", "Gray Bug G1",
+                          "Red Bug R1", "Green Bug V2",
+                          "Red Bug R2", "Gray Bug G2",
+                          "Shining Violet Gem");
+    totalWinnableItems = winnableItemNames.length;
+    console.log("Winnable items:", winnableItemNames, "Total to win:", totalWinnableItems);
+
+    // Initialize Item Combination Recipes (after bug names are defined)
+    itemCombinations.length = 0; // Clear array
+    itemCombinations.push({
+        item1Name: "Violet Fragment Alpha",
+        item2Name: "Violet Fragment Beta",
+        resultItem: {
+            name: "Shining Violet Gem",
+            color: "magenta",
+            points: 100
         }
-    }
-    console.log("Total bugs in game updated: " + totalBugsInGame);
+    });
+    console.log("Item combination recipes initialized:", itemCombinations);
+
 
     console.log("Adventure game initialized. Detective, scenes, and all scene-specific items created.");
     lastTime = performance.now(); // Initialize lastTime before starting the loop
     gameLoop(); // Start the game loop
 }
 
+function attemptCombination(item1, item2) {
+    if (!item1 || !item2) return false;
+
+    for (const recipe of itemCombinations) {
+        if ((recipe.item1Name === item1.name && recipe.item2Name === item2.name) ||
+            (recipe.item1Name === item2.name && recipe.item2Name === item1.name)) {
+
+            console.log(`Successfully combined ${item1.name} and ${item2.name} to create ${recipe.resultItem.name}!`);
+
+            foundBugsInventory = foundBugsInventory.filter(bug => bug !== item1 && bug !== item2);
+
+            score += recipe.resultItem.points;
+
+            const newItem = new Bug(0, 0, recipe.resultItem.color, recipe.resultItem.points, recipe.resultItem.name);
+            newItem.found = true;
+            foundBugsInventory.push(newItem);
+
+            // bugsFoundCount = bugsFoundCount - 2 + 1; // Remove this line
+            updateWinnableItemsCount(); // New call
+            selectedInventoryItem = null;
+            return true;
+        }
+    }
+    console.log(`Cannot combine ${item1.name} and ${item2.name}.`);
+    selectedInventoryItem = null;
+    return false;
+}
+
 // Helper function for finding bugs
 function findBugAction(bugInstance) {
     if (bugInstance && bugInstance.markAsFound()) {
         score += bugInstance.points;
-        bugsFoundCount++;
+        // winnableItemsInInventoryCount++; // Remove, handled by updateWinnableItemsCount
         if (!foundBugsInventory.includes(bugInstance)) {
             foundBugsInventory.push(bugInstance);
         }
-        // Global win condition check
-        if (bugsFoundCount === totalBugsInGame) {
+        updateWinnableItemsCount(); // New call
+        // if (winnableItemsInInventoryCount === totalWinnableItems) { gameWon = true; ... } // Remove, handled by updateWinnableItemsCount
+    }
+}
+
+function updateWinnableItemsCount() {
+    winnableItemsInInventoryCount = 0;
+    for (const itemInInventory of foundBugsInventory) {
+        if (winnableItemNames.includes(itemInInventory.name)) {
+            winnableItemsInInventoryCount++;
+        }
+    }
+    // Check for win condition here, after count is updated
+    if (winnableItemsInInventoryCount === totalWinnableItems) {
+        if (!gameWon) { // Prevent multiple win triggers
             gameWon = true;
-            console.log("All bugs in the entire game found! Final Score: " + score);
+            console.log("All winnable items acquired! Game Won! Final Score: " + score);
         }
     }
 }
@@ -423,16 +517,25 @@ canvas.addEventListener('click', function(event) {
         }
 
         if (clickedInventoryItemIndex !== -1) {
-            const clickedBug = foundBugsInventory[clickedInventoryItemIndex];
-            if (selectedInventoryItem === clickedBug) {
-                selectedInventoryItem = null; // Deselect if clicking already selected
-                console.log("Deselected item:", clickedBug.name);
-            } else {
-                selectedInventoryItem = clickedBug;
+            const clickedBugInInventory = foundBugsInventory[clickedInventoryItemIndex];
+
+            if (selectedInventoryItem === null) {
+                // No item previously selected, so select this one
+                selectedInventoryItem = clickedBugInInventory;
                 console.log("Selected item:", selectedInventoryItem.name);
+            } else {
+                // An item was already selected, try to combine
+                if (selectedInventoryItem === clickedBugInInventory) {
+                    // Clicking the already selected item deselects it
+                    selectedInventoryItem = null;
+                    console.log("Deselected item:", clickedBugInInventory.name);
+                } else {
+                    // Attempt to combine selectedInventoryItem with clickedBugInInventory
+                    attemptCombination(selectedInventoryItem, clickedBugInInventory);
+                    // selectedInventoryItem is reset within attemptCombination
+                }
             }
-            // IMPORTANT: Prevent further click processing (main scene interaction)
-            return;
+            return; // Click handled by inventory
         }
         // If click was in inventory panel but not on an item, also prevent scene interaction
         console.log("Clicked inside inventory panel, but not on an item.");
