@@ -131,8 +131,8 @@ function initGame() {
     const scene2 = new Scene('scene2_id', '#D0E0D0');
     const scene3 = new Scene('scene3_id', '#D0D0E0');
 
-    scene1.defaultStartX = canvas.width / 2;
-    scene1.defaultStartY = canvas.height / 2;
+    // Scene 1 Setup
+    scene1.addEntryPoint('entryFromS2', 550 - (30/2), canvas.height / 2);
     scene1.addBackgroundText("class Scene1_Main {", 50, 100);
     scene1.addBackgroundText("  // Primary code editor view", 70, 150);
     scene1.addBackgroundText("  void checkSystem() {", 90, 200);
@@ -140,22 +140,20 @@ function initGame() {
     scene1.addBackgroundText("  }", 90, 300);
     scene1.addBackgroundText("};", 50, 350);
 
-
-    scene2.defaultStartX = 70;
-    scene2.defaultStartY = canvas.height / 2;
+    // Scene 2 Setup
+    scene2.addEntryPoint('entryFromS1', 10 + (30/2), canvas.height / 2);
+    scene2.addEntryPoint('entryFromS3', 550 - (30/2), canvas.height / 2);
     scene2.addBackgroundText("#include <header_file.h>", 50, 100, 'bold 40px monospace', '#224422');
     scene2.addBackgroundText("namespace Utilities {", 70, 150, '30px monospace', '#224422');
     scene2.addBackgroundText("  // Checksum function?", 90, 200, '30px monospace', '#224422');
     scene2.addBackgroundText("}", 70, 250, '30px monospace', '#224422');
 
-
-    scene3.defaultStartX = canvas.width - INVENTORY_WIDTH - 70;
-    scene3.defaultStartY = canvas.height / 2;
+    // Scene 3 Setup
+    scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2);
     scene3.addBackgroundText("struct LogFile {", 50, 100, 'bold 36px monospace', '#222244');
     scene3.addBackgroundText("  char timestamp[32];", 70, 150, '28px monospace', '#222244');
     scene3.addBackgroundText("  char message[256];", 70, 200, '28px monospace', '#222244');
     scene3.addBackgroundText("};", 50, 250, 'bold 36px monospace', '#222244');
-
 
     gameScenes['scene1_id'] = scene1;
     gameScenes['scene2_id'] = scene2;
@@ -169,7 +167,7 @@ function initGame() {
     // Reset score and bug counts for the new game/scene structure
     score = 0;
     bugsFoundCount = 0;
-    // totalBugsInScene will be set based on currentScene's bugs
+    // totalBugsInGame will be calculated after scenes are populated
 
     // --- Scene 1 Content ---
     const bug1_s1 = new Bug(100, 200, 'green', 10, "S1 Green Bug");
@@ -189,9 +187,9 @@ function initGame() {
     scene1.addHotspot(hotspot1_s1);
 
     const navHotspot_s1_to_s2 = new Hotspot(
-        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, // Position: right edge of main scene area
-        60, 50, // Size
-        function() { goToScene('scene2_id'); },
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25,
+        60, 50,
+        function() { goToScene('scene2_id', 'entryFromS1'); },
         "NAV_S1_to_S2"
     );
     scene1.addHotspot(navHotspot_s1_to_s2);
@@ -226,17 +224,17 @@ function initGame() {
     scene2.addHotspot(hotspot2_s2);
 
     const navHotspot_s2_to_s1 = new Hotspot(
-        10, canvas.height / 2 - 25, // Position: left edge
-        60, 50, // Size
-        function() { goToScene('scene1_id'); },
+        10, canvas.height / 2 - 25,
+        60, 50,
+        function() { goToScene('scene1_id', 'entryFromS2'); },
         "NAV_S2_to_S1"
     );
     scene2.addHotspot(navHotspot_s2_to_s1);
 
     const navHotspot_s2_to_s3 = new Hotspot(
-        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, // Position: right edge
-        60, 50, // Size
-        function() { goToScene('scene3_id'); },
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25,
+        60, 50,
+        function() { goToScene('scene3_id', 'entryFromS2'); },
         "NAV_S2_to_S3"
     );
     scene2.addHotspot(navHotspot_s2_to_s3);
@@ -258,9 +256,9 @@ function initGame() {
     scene3.addHotspot(hotspot1_s3);
 
     const navHotspot_s3_to_s2 = new Hotspot(
-        10, canvas.height / 2 - 25, // Position: left edge
-        60, 50, // Size
-        function() { goToScene('scene2_id'); },
+        10, canvas.height / 2 - 25,
+        60, 50,
+        function() { goToScene('scene2_id', 'entryFromS3'); },
         "NAV_S3_to_S2"
     );
     scene3.addHotspot(navHotspot_s3_to_s2);
@@ -279,30 +277,40 @@ function initGame() {
     gameLoop(); // Start the game loop
 }
 
-function goToScene(sceneId) {
-    if (gameScenes[sceneId]) {
-        console.log(`Going to scene: ${sceneId}`);
-        if(currentScene && currentScene.setDetective) { // Ensure currentScene is a Scene object
-             currentScene.setDetective(null); // Remove detective from old scene
+function goToScene(targetSceneId, entryPointName) {
+    if (gameScenes[targetSceneId]) {
+        console.log(`Attempting to go to scene: '${targetSceneId}' using entry point: '${entryPointName}'`);
+
+        if (currentScene && currentScene.setDetective) { // Ensure currentScene is valid and has setDetective
+            currentScene.setDetective(null); // Remove detective from old scene
         }
-        currentScene = gameScenes[sceneId];
+
+        currentScene = gameScenes[targetSceneId];
 
         if (detective) {
-            detective.x = currentScene.defaultStartX || canvas.width / 2;
-            detective.y = currentScene.defaultStartY || canvas.height / 2;
-            detective.targetX = detective.x;
+            const entryPoint = currentScene.getEntryPoint(entryPointName); // Get specific entry point
+
+            detective.x = entryPoint.x;
+            detective.y = entryPoint.y;
+            detective.targetX = detective.x; // Ensure target is also updated
             detective.targetY = detective.y;
-            detective.isMoving = false;
-            if(currentScene && currentScene.setDetective){ // Ensure new currentScene is a Scene object
-                currentScene.setDetective(detective);
+            detective.isMoving = false;      // Stop any current movement
+
+            if (currentScene.setDetective) { // Ensure new currentScene is valid
+                 currentScene.setDetective(detective); // Add detective to new scene
             }
+            console.log(`Detective moved to entry point '${entryPointName}' in scene '${currentScene.id}' at (${detective.x}, ${detective.y})`);
+        } else {
+            console.warn("goToScene: Detective object not found.");
         }
-        // totalBugsInGame is global and does not change when scenes change.
+
+        // Any other logic needed on scene change (e.g., playing entry music, etc.)
+        // totalBugsInGame is global and does not change.
         // bugsFoundCount is also global and persists across scenes.
         // gameWon status also persists.
 
     } else {
-        console.error(`Scene with ID ${sceneId} not found!`);
+        console.error(`Scene with ID '${targetSceneId}' not found!`);
     }
 }
 

@@ -2,16 +2,30 @@ class Scene {
     constructor(id, backgroundColor = '#808080') {
         this.id = id;
         this.backgroundColor = backgroundColor;
+        this.backgroundTextLines = [];
         this.hotspots = [];
         this.bugs = [];
         this.detective = null;
-        this.defaultStartX = 0;
-        this.defaultStartY = 0;
-        this.backgroundTextLines = []; // For unique text per scene
+        this.entryPoints = {}; // New: To store named {x, y} entry coordinates
+        this.defaultEntryPoint = { x: 100, y: 100 }; // Example default
     }
 
     addBackgroundText(text, x, y, font = 'bold 48px monospace', color = '#C0C0C0', textAlign = 'left') {
         this.backgroundTextLines.push({ text, x, y, font, color, textAlign });
+    }
+
+    addEntryPoint(name, x, y) {
+        this.entryPoints[name] = { x: x, y: y };
+        console.log(`Entry point '${name}' added to scene '${this.id}' at (${x},${y})`);
+    }
+
+    getEntryPoint(name) {
+        if (this.entryPoints[name]) {
+            return this.entryPoints[name];
+        } else {
+            console.warn(`Entry point '${name}' not found in scene '${this.id}'. Using default entry point.`);
+            return this.defaultEntryPoint;
+        }
     }
 
     addHotspot(hotspot) {
@@ -31,24 +45,15 @@ class Scene {
         ctx.fillStyle = this.backgroundColor;
         ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
-        // Static background code-like text
-        ctx.fillStyle = '#C0C0C0'; // Silver or a very light, subtle gray
-        ctx.font = 'bold 48px monospace'; // Monospace font for code feel
-        ctx.textAlign = 'left';
+        // 2. Draw scene-specific background text
+        this.backgroundTextLines.forEach(line => {
+            ctx.fillStyle = line.color;
+            ctx.font = line.font;
+            ctx.textAlign = line.textAlign;
+            ctx.fillText(line.text, line.x, line.y);
+        });
 
-        ctx.fillText("class BugHunter {", 50, 100);
-        ctx.fillText("  public:", 70, 150);
-        ctx.fillText("    void findBugs() {", 90, 200);
-        ctx.fillText("      // TODO: Check all lines...", 110, 250);
-        ctx.fillText("    }", 90, 300);
-        ctx.fillText("};", 50, 350);
-
-        ctx.fillText("std::vector<Bug> bugs;", 400, 450);
-        ctx.fillText("for(auto& bug : bugs) {", 420, 500);
-        ctx.fillText("  fix(bug);", 440, 550);
-
-        // 2. Draw found bugs - This section is now removed/commented out.
-        //    Bugs will be drawn in the inventory UI, not directly on the scene.
+        // 3. Draw found bugs (should still be commented out or removed from here)
         /*
         this.bugs.forEach(bug => {
             // The bug.draw method itself checks if it's found
