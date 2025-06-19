@@ -152,129 +152,84 @@ function updateWinnableItemsCount() {
 function initGame() {
     // Reset game state variables
     score = 0;
-    winnableItemsInInventoryCount = 0; // Reset new counter
-    // totalWinnableItems will be set after winnableItemNames is populated below
+    winnableItemsInInventoryCount = 0;
     gameWon = false;
-    foundBugsInventory = []; // Clear inventory on game start/reset
-    selectedInventoryItem = null; // Reset selected item on game start/restart
-    for (const key in gameScenes) { delete gameScenes[key]; } // Clear gameScenes object
+    foundBugsInventory = [];
+    selectedInventoryItem = null;
+    for (const key in gameScenes) { delete gameScenes[key]; }
+    itemCombinations.length = 0;
+    winnableItemNames.length = 0;
 
+    // Define Name Constants for items
+    const VIOLET_FRAGMENT_ALPHA_NAME = "Violet Fragment Alpha";
+    const VIOLET_FRAGMENT_BETA_NAME = "Violet Fragment Beta";
+    const SHINING_VIOLET_GEM_NAME = "Shining Violet Gem";
 
+    // Points constants
+    const pointsRed = 40, pointsGray = 30, pointsOrange = 20, pointsGreen = 10;
+    const pointsViolet = 0;
+
+    // 1. Declare bug variables (already global or higher scope in this file)
+    // let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
+    // let vio1_s2, vio2_s3;
+
+    // 2. Instantiate all Bug objects
+    v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1");
+    o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1");
+    g1_s1 = new Bug(100, 280, 'gray', pointsGray, "Gray Bug G1");
+
+    r1_s2 = new Bug(150, 200, 'red', pointsRed, "Red Bug R1");
+    v2_s2 = new Bug(150, 250, 'green', pointsGreen, "Green Bug V2");
+    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_ALPHA_NAME);
+
+    r2_s3 = new Bug(200, 200, 'red', pointsRed, "Red Bug R2");
+    g2_s3 = new Bug(200, 250, 'gray', pointsGray, "Gray Bug G2");
+    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME);
+
+    // Scene Setup
     const scene1 = new Scene('scene1_id', '#E0E0E0');
-    const scene2 = new Scene('scene2_id', '#D0E0D0');
-    const scene3 = new Scene('scene3_id', '#D0D0E0');
-
-    // Scene 1 Setup
     scene1.addEntryPoint('entryFromS2', 550 - (30/2), canvas.height / 2);
-
-    const DETECTIVE_ICON_WIDTH = 30;
-    const DETECTIVE_ICON_HEIGHT = 50;
     const mainSceneWidthForSpawn = canvas.width - INVENTORY_WIDTH;
-    const spawnX_s1 = (mainSceneWidthForSpawn / 2) - (DETECTIVE_ICON_WIDTH / 2);
-    const spawnY_s1 = (canvas.height / 2) - (DETECTIVE_ICON_HEIGHT / 2);
+    const spawnX_s1 = (mainSceneWidthForSpawn / 2) - (30 / 2);
+    const spawnY_s1 = (canvas.height / 2) - (50 / 2);
     scene1.addEntryPoint('initialSpawnPoint', spawnX_s1, spawnY_s1);
-
     scene1.addBackgroundText("class Scene1_Main {", 50, 100);
     scene1.addBackgroundText("  // Primary code editor view", 70, 150);
     scene1.addBackgroundText("  void checkSystem() {", 90, 200);
     scene1.addBackgroundText("    if (critical_bug) return;", 110, 250);
     scene1.addBackgroundText("  }", 90, 300);
     scene1.addBackgroundText("};", 50, 350);
+    gameScenes['scene1_id'] = scene1;
 
-    // Scene 2 Setup
+    const scene2 = new Scene('scene2_id', '#D0E0D0');
     scene2.addEntryPoint('entryFromS1', 10 + (30/2), canvas.height / 2);
     scene2.addEntryPoint('entryFromS3', 550 - (30/2), canvas.height / 2);
     scene2.addBackgroundText("#include <header_file.h>", 50, 100, 'bold 40px monospace', '#224422');
     scene2.addBackgroundText("namespace Utilities {", 70, 150, '30px monospace', '#224422');
     scene2.addBackgroundText("  // Checksum function?", 90, 200, '30px monospace', '#224422');
     scene2.addBackgroundText("}", 70, 250, '30px monospace', '#224422');
+    gameScenes['scene2_id'] = scene2;
 
-    // Scene 3 Setup
+    const scene3 = new Scene('scene3_id', '#D0D0E0');
     scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2);
     scene3.addBackgroundText("struct LogFile {", 50, 100, 'bold 36px monospace', '#222244');
     scene3.addBackgroundText("  char timestamp[32];", 70, 150, '28px monospace', '#222244');
     scene3.addBackgroundText("  char message[256];", 70, 200, '28px monospace', '#222244');
     scene3.addBackgroundText("};", 50, 250, 'bold 36px monospace', '#222244');
-
-    gameScenes['scene1_id'] = scene1;
-    gameScenes['scene2_id'] = scene2;
     gameScenes['scene3_id'] = scene3;
 
-    currentScene = gameScenes['scene1_id']; // Start in scene 1
-
-    // Detective creation and initial placement
-    const initialEntryPoint = currentScene.getEntryPoint('initialSpawnPoint');
-
-    if (!detective) { // Create detective only if it doesn't exist (e.g. first load)
-        detective = new Detective(initialEntryPoint.x, initialEntryPoint.y);
-    } else { // If detective exists (e.g. from a game restart calling initGame), just move it
-        detective.x = initialEntryPoint.x;
-        detective.y = initialEntryPoint.y;
-        detective.targetX = initialEntryPoint.x;
-        detective.targetY = initialEntryPoint.y;
-        detective.isMoving = false;
-        detective.interactionTargetHotspot = null;
-    }
-
-    currentScene.setDetective(detective); // Associate detective with the current scene
-
-    // Reset score and bug counts for the new game/scene structure
-    score = 0;
-    bugsFoundCount = 0;
-    // totalBugsInGame will be calculated after all scenes and bugs are added.
-
-    // Points constants
-    const pointsRed = 40, pointsGray = 30, pointsOrange = 20, pointsGreen = 10;
-
-    // 1. Declare all bug variables
-    let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
-    let vio1_s2, vio2_s3; // New Violet Bugs
-
-    // Define Name Constants for items involved in combination
-    const VIOLET_FRAGMENT_ALPHA_NAME = "Violet Fragment Alpha";
-    const VIOLET_FRAGMENT_BETA_NAME = "Violet Fragment Beta";
-    const SHINING_VIOLET_GEM_NAME = "Shining Violet Gem";
-
-    // Item Combination Recipes
-    const itemCombinations = [];
-
-    // 2. Instantiate all Bug objects
-    const pointsViolet = 0; // Violet fragments are initially 0 points
-
-    v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1");
-    o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1");
-    g1_s1 = new Bug(100, 280, 'gray', pointsGray, "Gray Bug G1"); // Found by puzzle
-
-    r1_s2 = new Bug(150, 200, 'red', pointsRed, "Red Bug R1"); // Puzzle key
-    v2_s2 = new Bug(150, 250, 'green', pointsGreen, "Green Bug V2");
-
-    r2_s3 = new Bug(200, 200, 'red', pointsRed, "Red Bug R2");
-    g2_s3 = new Bug(200, 250, 'gray', pointsGray, "Gray Bug G2");
-
-    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_ALPHA_NAME);
-    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME);
-
-    // --- SCENE 1 Bugs & Hotspots ---
+    // --- SCENE 1 Content ---
     scene1.bugs = []; scene1.hotspots = [];
     scene1.addBug(v1_s1);
     scene1.addBug(o1_s1);
     scene1.addBug(g1_s1);
-
-    const hs_v1_s1 = new Hotspot(50, 160, 100, 50,
-        function() { findBugAction(v1_s1); }, "HS_Find_V1_S1",
-        null, null, null,
-        'bugStrongbox', v1_s1);
-    const hs_o1_s1 = new Hotspot(50, 210, 100, 50,
-        function() { findBugAction(o1_s1); }, "HS_Find_O1_S1",
-        null, null, null,
-        'bugStrongbox', o1_s1);
+    const hs_v1_s1 = new Hotspot(50, 160, 100, 50, function() { findBugAction(v1_s1); }, "HS_Find_V1_S1", null, null, null, 'bugStrongbox', v1_s1);
+    const hs_o1_s1 = new Hotspot(50, 210, 100, 50, function() { findBugAction(o1_s1); }, "HS_Find_O1_S1", null, null, null, 'bugStrongbox', o1_s1);
     scene1.addHotspot(hs_v1_s1);
     scene1.addHotspot(hs_o1_s1);
-
     const hs_puzzle_for_g1 = new Hotspot(50, 260, 100, 50,
         function() { console.log("A strange mechanism. It seems to be missing a part."); },
-        "HS_Puzzle_GrayBugLocation",
-        r1_s2.name,
+        "HS_Puzzle_GrayBugLocation", r1_s2.name,
         function() {
             console.log("The Red Bug R1 fits perfectly! Gray Bug G1 revealed!");
             findBugAction(g1_s1);
@@ -285,138 +240,122 @@ function initGame() {
         },
         'bugStrongbox', g1_s1);
     scene1.addHotspot(hs_puzzle_for_g1);
-
-    const navHotspot_s1_to_s2 = new Hotspot(
-        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25,
-        60, 50,
-        function() { goToScene('scene2_id', 'entryFromS1'); },
-        "NAV_S1_to_S2",
-        null, null, null,
-        'door', null);
+    const navHotspot_s1_to_s2 = new Hotspot(canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50,
+        function() { goToScene('scene2_id', 'entryFromS1'); }, "NAV_S1_to_S2", null, null, null, 'door', null);
     scene1.addHotspot(navHotspot_s1_to_s2);
 
-    // --- SCENE 2 Bugs & Hotspots ---
+    // --- SCENE 2 Content ---
     scene2.bugs = []; scene2.hotspots = [];
     scene2.addBug(r1_s2);
     scene2.addBug(v2_s2);
-    scene2.addBug(vio1_s2); // Add new violet bug to Scene 2
-
-    const hs_r1_s2_hotspot = new Hotspot(100, 180, 100, 50,
-        function() { findBugAction(r1_s2); }, "HS_Find_R1_S2",
-        null, null, null,
-        'bugStrongbox', r1_s2);
-    const hs_v2_s2_hotspot = new Hotspot(100, 230, 100, 50,
-        function() { findBugAction(v2_s2); }, "HS_Find_V2_S2",
-        null, null, null,
-        'bugStrongbox', v2_s2);
-    const hs_vio1_s2 = new Hotspot(200, 130, 100, 50,
-        function() { findBugAction(vio1_s2); }, "HS_Find_Vio1_S2",
-        null, null, null,
-        'bugStrongbox', vio1_s2);
+    scene2.addBug(vio1_s2);
+    const hs_r1_s2_hotspot = new Hotspot(100, 180, 100, 50, function() { findBugAction(r1_s2); }, "HS_Find_R1_S2", null, null, null, 'bugStrongbox', r1_s2);
+    const hs_v2_s2_hotspot = new Hotspot(100, 230, 100, 50, function() { findBugAction(v2_s2); }, "HS_Find_V2_S2", null, null, null, 'bugStrongbox', v2_s2);
+    const hs_vio1_s2 = new Hotspot(200, 130, 100, 50, function() { findBugAction(vio1_s2); }, "HS_Find_Vio1_S2", null, null, null, 'bugStrongbox', vio1_s2);
     scene2.addHotspot(hs_r1_s2_hotspot);
     scene2.addHotspot(hs_v2_s2_hotspot);
     scene2.addHotspot(hs_vio1_s2);
-
-    const navHotspot_s2_to_s1 = new Hotspot(
-        10, canvas.height / 2 - 25,
-        60, 50,
-        function() { goToScene('scene1_id', 'entryFromS2'); },
-        "NAV_S2_to_S1",
-        null, null, null,
-        'door', null);
+    const navHotspot_s2_to_s1 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene1_id', 'entryFromS2'); }, "NAV_S2_to_S1", null, null, null, 'door', null);
     scene2.addHotspot(navHotspot_s2_to_s1);
-    const navHotspot_s2_to_s3 = new Hotspot(
-        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25,
-        60, 50,
-        function() { goToScene('scene3_id', 'entryFromS2'); },
-        "NAV_S2_to_S3",
-        null, null, null,
-        'door', null);
+    const navHotspot_s2_to_s3 = new Hotspot(canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene3_id', 'entryFromS2'); }, "NAV_S2_to_S3", null, null, null, 'door', null);
     scene2.addHotspot(navHotspot_s2_to_s3);
 
-    // --- SCENE 3 Bugs & Hotspots ---
+    // --- SCENE 3 Content ---
     scene3.bugs = []; scene3.hotspots = [];
     scene3.addBug(r2_s3);
     scene3.addBug(g2_s3);
-    scene3.addBug(vio2_s3); // Add new violet bug to Scene 3
-
-    const hs_r2_s3_hotspot = new Hotspot(150, 180, 100, 50,
-        function() { findBugAction(r2_s3); }, "HS_Find_R2_S3",
-        null, null, null,
-        'bugStrongbox', r2_s3);
-    const hs_g2_s3_hotspot = new Hotspot(150, 230, 100, 50,
-        function() { findBugAction(g2_s3); }, "HS_Find_G2_S3",
-        null, null, null,
-        'bugStrongbox', g2_s3);
-    const hs_vio2_s3 = new Hotspot(250, 130, 100, 50,
-        function() { findBugAction(vio2_s3); }, "HS_Find_Vio2_S3",
-        null, null, null,
-        'bugStrongbox', vio2_s3);
+    scene3.addBug(vio2_s3);
+    const hs_r2_s3_hotspot = new Hotspot(150, 180, 100, 50, function() { findBugAction(r2_s3); }, "HS_Find_R2_S3", null, null, null, 'bugStrongbox', r2_s3);
+    const hs_g2_s3_hotspot = new Hotspot(150, 230, 100, 50, function() { findBugAction(g2_s3); }, "HS_Find_G2_S3", null, null, null, 'bugStrongbox', g2_s3);
+    const hs_vio2_s3 = new Hotspot(250, 130, 100, 50, function() { findBugAction(vio2_s3); }, "HS_Find_Vio2_S3", null, null, null, 'bugStrongbox', vio2_s3);
     scene3.addHotspot(hs_r2_s3_hotspot);
     scene3.addHotspot(hs_g2_s3_hotspot);
     scene3.addHotspot(hs_vio2_s3);
-
-    const navHotspot_s3_to_s2 = new Hotspot(
-        10, canvas.height / 2 - 25,
-        60, 50,
-        function() { goToScene('scene2_id', 'entryFromS3'); },
-        "NAV_S3_to_S2",
-        null, null, null,
-        'door', null);
+    const navHotspot_s3_to_s2 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene2_id', 'entryFromS3'); }, "NAV_S3_to_S2", null, null, null, 'door', null);
     scene3.addHotspot(navHotspot_s3_to_s2);
 
-    // Populate winnableItemNames (after bug names are defined and scenes are set up)
-    winnableItemNames.length = 0; // Clear for restarts
+    // Set current scene and detective AFTER all scenes are populated
+    currentScene = gameScenes['scene1_id'];
+    const initialEntryPoint = currentScene.getEntryPoint('initialSpawnPoint');
+    if (!detective) {
+        detective = new Detective(initialEntryPoint.x, initialEntryPoint.y);
+    } else {
+        detective.x = initialEntryPoint.x;
+        detective.y = initialEntryPoint.y;
+        detective.targetX = initialEntryPoint.x;
+        detective.targetY = initialEntryPoint.y;
+        detective.isMoving = false;
+        detective.interactionTargetHotspot = null;
+    }
+    currentScene.setDetective(detective);
+
+    // Populate winnableItemNames (after bug names are defined)
+    winnableItemNames.length = 0;
     winnableItemNames.push("Green Bug V1", "Orange Bug O1", "Gray Bug G1",
                           "Red Bug R1", "Green Bug V2",
                           "Red Bug R2", "Gray Bug G2",
-                          SHINING_VIOLET_GEM_NAME); // Use constant
+                          SHINING_VIOLET_GEM_NAME);
     totalWinnableItems = winnableItemNames.length;
     console.log("Winnable items:", winnableItemNames, "Total to win:", totalWinnableItems);
 
-    // Initialize Item Combination Recipes (after bug names are defined)
-    itemCombinations.length = 0; // Clear array
+    // Initialize Item Combination Recipes
     itemCombinations.push({
         item1Name: VIOLET_FRAGMENT_ALPHA_NAME,
         item2Name: VIOLET_FRAGMENT_BETA_NAME,
-        resultItem: {
-            name: SHINING_VIOLET_GEM_NAME,
-            color: "magenta",
-            points: 100
-        }
+        resultItem: { name: SHINING_VIOLET_GEM_NAME, color: "magenta", points: 100 }
     });
     console.log("Item combination recipes initialized:", itemCombinations);
 
-
     console.log("Adventure game initialized. Detective, scenes, and all scene-specific items created.");
-    lastTime = performance.now(); // Initialize lastTime before starting the loop
-    gameLoop(); // Start the game loop
+    lastTime = performance.now();
+    gameLoop();
 }
 
 function attemptCombination(item1, item2) {
-    if (!item1 || !item2) return false;
+    console.log("[DEBUG] Attempting combination...");
+    if (!item1 || !item2) {
+        console.error("[DEBUG] ERROR: attemptCombination called with null item(s).", "Item1:", item1, "Item2:", item2);
+        selectedInventoryItem = null;
+        return false;
+    }
+    const item1Name = item1.name || "UNKNOWN_ITEM1_NAME";
+    const item2Name = item2.name || "UNKNOWN_ITEM2_NAME";
+
+    console.log(`[DEBUG] Item 1: '${item1Name}' (Type: ${typeof item1Name})`);
+    console.log(`[DEBUG] Item 2: '${item2Name}' (Type: ${typeof item2Name})`);
+
+    const serializableRecipes = itemCombinations.map(r => ({
+        item1Name: r.item1Name,
+        item2Name: r.item2Name,
+        resultItemName: r.resultItem ? r.resultItem.name : "UNKNOWN_RESULT_NAME"
+    }));
+    console.log("[DEBUG] Available recipes:", JSON.stringify(serializableRecipes));
 
     for (const recipe of itemCombinations) {
-        if ((recipe.item1Name === item1.name && recipe.item2Name === item2.name) ||
-            (recipe.item1Name === item2.name && recipe.item2Name === item1.name)) {
+        const recipeItem1Name = recipe.item1Name || "UNKNOWN_RECIPE_ITEM1_NAME";
+        const recipeItem2Name = recipe.item2Name || "UNKNOWN_RECIPE_ITEM2_NAME";
+        console.log(`[DEBUG] Checking recipe: Needs ('${recipeItem1Name}', '${recipeItem2Name}'). Have ('${item1Name}', '${item2Name}')`);
 
-            console.log(`Successfully combined ${item1.name} and ${item2.name} to create ${recipe.resultItem.name}!`);
+        const match1 = (recipeItem1Name === item1Name && recipeItem2Name === item2Name);
+        const match2 = (recipeItem1Name === item2Name && recipeItem2Name === item1Name);
+
+        console.log(`[DEBUG] Match forward (A+B): ${match1}`);
+        console.log(`[DEBUG] Match reverse (B+A): ${match2}`);
+
+        if (match1 || match2) {
+            console.log("[DEBUG] SUCCESS: Recipe matched!");
 
             foundBugsInventory = foundBugsInventory.filter(bug => bug !== item1 && bug !== item2);
-
             score += recipe.resultItem.points;
-
             const newItem = new Bug(0, 0, recipe.resultItem.color, recipe.resultItem.points, recipe.resultItem.name);
             newItem.found = true;
             foundBugsInventory.push(newItem);
-
-            // bugsFoundCount = bugsFoundCount - 2 + 1; // Remove this line
-            updateWinnableItemsCount(); // New call
+            updateWinnableItemsCount();
             selectedInventoryItem = null;
             return true;
         }
     }
-    console.log(`Cannot combine ${item1.name} and ${item2.name}.`);
+    console.log("[DEBUG] FAILURE: No matching recipe found for the given items.");
     selectedInventoryItem = null;
     return false;
 }
