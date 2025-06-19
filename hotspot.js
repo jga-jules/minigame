@@ -19,8 +19,8 @@ class Hotspot {
         this.onUseItemSuccessAction = onUseItemSuccessAction;
         this.onUseItemFailureAction = onUseItemFailureAction;
 
-        this.iconType = iconType;         // New: e.g., 'bugStrongbox', 'door'
-        this.associatedBug = associatedBug; // New: Link to a bug object for status check
+        this.iconType = iconType;
+        this.associatedBug = associatedBug;
     }
 
     isClicked(mouseX, mouseY) {
@@ -34,118 +34,144 @@ class Hotspot {
 
         // Assumes selectedInventoryItem is a global variable from adventure_game.js
         if (this.requiredItemName) {
-            // This hotspot requires an item
             if (selectedInventoryItem && selectedInventoryItem.name === this.requiredItemName) {
-                // Correct item is selected
                 if (typeof this.onUseItemSuccessAction === 'function') {
                     this.onUseItemSuccessAction();
-                    // Optional: adventure_game.js logic might deselect selectedInventoryItem here if item is "consumed"
-                    return; // Success action executed
+                    return;
                 } else {
                     console.log(`Hotspot ${this.name} was used with correct item ${selectedInventoryItem.name}, but no success action defined.`);
                 }
             } else {
-                // Wrong item or no item selected for a hotspot that requires one
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    this.onUseItemFailureAction(selectedInventoryItem); // Pass item to failure action
+                    this.onUseItemFailureAction(selectedInventoryItem);
                 } else {
-                    // Default failure:
                     if (selectedInventoryItem) {
                          console.log(`Using ${selectedInventoryItem.name} on ${this.name} doesn't seem to work.`);
                     } else {
                          console.log(`${this.name} might need a specific item.`);
                     }
                 }
-                return; // Failure action (or default) executed or message logged
+                return;
             }
         } else if (typeof this.onClickAction === 'function') {
-            // No item required, just a direct interaction hotspot
             this.onClickAction();
         } else {
             console.log(`Hotspot ${this.name} clicked, but has no defined action.`);
         }
     }
 
-    // For debugging purposes
     draw(ctx) {
         if (!this.isEnabled) return;
 
-        ctx.save(); // Save context state
-
-        // Common styles
-        ctx.lineWidth = 2;
-
-        if (this.iconType === 'bugStrongbox') {
-            const boxColor = '#8B4513'; // SaddleBrown for the box
-            const metalColor = '#C0C0C0'; // Silver for fittings
-            const darkDetailColor = '#5D4037'; // Darker brown for details
-
-            ctx.fillStyle = boxColor;
-            ctx.fillRect(this.x, this.y, this.width, this.height); // Main box
-
-            // Lid outline
-            ctx.strokeStyle = darkDetailColor;
-            ctx.beginPath();
-            ctx.rect(this.x, this.y, this.width, this.height * 0.3); // Top 30% is lid
-            ctx.stroke();
-
-            // Lock plate
-            ctx.fillStyle = metalColor;
-            ctx.fillRect(this.x + this.width * 0.4, this.y + this.height * 0.35, this.width * 0.2, this.height * 0.2);
-            // Keyhole (simple circle)
-            ctx.fillStyle = '#000000';
-            ctx.beginPath();
-            ctx.arc(this.x + this.width * 0.5, this.y + this.height * 0.45, 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            if (this.associatedBug && this.associatedBug.found) {
-                // Draw "Open" state - e.g., lid slightly ajar, or a broken lock
-                ctx.strokeStyle = darkDetailColor;
-                ctx.lineWidth = 3; // Thicker line for "breach"
-                ctx.beginPath();
-                ctx.moveTo(this.x + this.width * 0.3, this.y + this.height * 0.25);
-                ctx.lineTo(this.x + this.width * 0.7, this.y + this.height * 0.35);
-                ctx.stroke(); // A crack or open line
-
-                // Change lock to look open/broken
-                ctx.fillStyle = darkDetailColor; // Darker, as if hole
-                ctx.beginPath();
-                ctx.arc(this.x + this.width * 0.5, this.y + this.height * 0.45, 4, 0, Math.PI * 2);
-                ctx.fill();
-
-            } else {
-                // Closed state is already drawn mostly by default box + lock plate
-            }
-
-        } else if (this.iconType === 'door') {
-            const doorColor = '#A0522D'; // Sienna - a woody door color
-            const frameColor = '#704214'; // Darker brown for frame
-            const knobColor = '#FFD700';  // Gold for doorknob
-
-            // Door
-            ctx.fillStyle = doorColor;
-            ctx.fillRect(this.x, this.y, this.width, this.height);
-            ctx.strokeStyle = frameColor;
-            ctx.strokeRect(this.x, this.y, this.width, this.height);
-
-            // Doorknob (a circle on one side)
-            const knobRadius = Math.min(this.width, this.height) * 0.08;
-            ctx.fillStyle = knobColor;
-            ctx.beginPath();
-            ctx.arc(this.x + this.width * 0.8, this.y + this.height * 0.5, knobRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#DAA520'; // Goldenrod for outline
-            ctx.stroke();
-
-        } else if (this.iconType === 'debugRect') {
-            // Original debug rectangle
+        // If iconType is 'debugRect', draw it using the full hotspot area and return.
+        if (this.iconType === 'debugRect') {
+            ctx.save();
             ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
             ctx.lineWidth = 1;
             ctx.strokeRect(this.x, this.y, this.width, this.height);
+            ctx.restore();
+            return;
         }
-        // No default drawing if iconType is 'none' or unrecognised and not 'debugRect'
 
-        ctx.restore(); // Restore context state
+        const margin = 3;
+        const iconX = this.x + margin;
+        const iconY = this.y + margin;
+        const iconWidth = this.width - 2 * margin;
+        const iconHeight = this.height - 2 * margin;
+
+        if (iconWidth <= 0 || iconHeight <= 0) return;
+
+        ctx.save();
+        ctx.lineWidth = 2; // Default lineWidth for icons
+
+        if (this.iconType === 'bugStrongbox') {
+            const boxColor = '#8B4513';
+            const metalColor = '#C0C0C0';
+            const darkDetailColor = '#5D4037';
+
+            ctx.fillStyle = boxColor;
+            ctx.fillRect(iconX, iconY, iconWidth, iconHeight);
+
+            const lidHeight = iconHeight * 0.3;
+            ctx.strokeStyle = darkDetailColor;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.rect(iconX, iconY, iconWidth, lidHeight);
+            ctx.stroke();
+
+            ctx.fillStyle = metalColor;
+            ctx.fillRect(iconX + iconWidth * 0.4, iconY + iconHeight * 0.35, iconWidth * 0.2, iconHeight * 0.2); // Lock plate
+
+            const keyholeX = iconX + iconWidth * 0.5;
+            const keyholeY = iconY + iconHeight * 0.45;
+
+            if (this.associatedBug && this.associatedBug.found) {
+                ctx.fillStyle = '#3A2F2F';
+                const interiorMargin = iconWidth * 0.1;
+                const interiorVisibleHeight = iconHeight * 0.6;
+                ctx.fillRect(
+                    iconX + interiorMargin / 2,
+                    iconY + lidHeight * 0.5,
+                    iconWidth - interiorMargin,
+                    interiorVisibleHeight
+                );
+
+                ctx.fillStyle = boxColor;
+                ctx.strokeStyle = darkDetailColor;
+                ctx.lineWidth = 2;
+
+                const lidOpenAngleOffsetY = -lidHeight * 0.7;
+                const lidDepthPerspective = iconWidth * 0.1;
+
+                ctx.beginPath();
+                ctx.moveTo(iconX + lidDepthPerspective / 2, iconY + lidHeight * 0.2);
+                ctx.lineTo(iconX + iconWidth - lidDepthPerspective / 2, iconY + lidHeight * 0.2);
+                ctx.lineTo(iconX + iconWidth, iconY + lidOpenAngleOffsetY + lidHeight * 0.3);
+                ctx.lineTo(iconX, iconY + lidOpenAngleOffsetY + lidHeight * 0.3);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#444444';
+                ctx.fillRect(iconX + iconWidth * 0.4, iconY + iconHeight * 0.35, iconWidth * 0.2, iconHeight * 0.2);
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.moveTo(keyholeX - 3, keyholeY - 2);
+                ctx.lineTo(keyholeX + 2, keyholeY - 3);
+                ctx.lineTo(keyholeX, keyholeY + 3);
+                ctx.lineTo(keyholeX + 3, keyholeY + 2);
+                ctx.lineTo(keyholeX - 2, keyholeY + 3);
+                ctx.closePath();
+                ctx.fill();
+
+            } else {
+                ctx.fillStyle = '#000000';
+                ctx.beginPath();
+                ctx.arc(keyholeX, keyholeY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+        } else if (this.iconType === 'door') {
+            const doorColor = '#A0522D';
+            const frameColor = '#704214';
+            const knobColor = '#FFD700';
+
+            ctx.fillStyle = doorColor;
+            ctx.fillRect(iconX, iconY, iconWidth, iconHeight);
+            ctx.strokeStyle = frameColor;
+            ctx.lineWidth = 2; // Ensure consistent line width for door outline
+            ctx.strokeRect(iconX, iconY, iconWidth, iconHeight);
+
+            const knobRadius = Math.min(iconWidth, iconHeight) * 0.08;
+            ctx.fillStyle = knobColor;
+            ctx.beginPath();
+            ctx.arc(iconX + iconWidth * 0.8, iconY + iconHeight * 0.5, knobRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#DAA520';
+            ctx.lineWidth = 1; // Thinner line for knob outline
+            ctx.stroke();
+        }
+        ctx.restore();
     }
 }
 
