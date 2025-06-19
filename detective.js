@@ -9,10 +9,11 @@ class Detective {
         this.targetX = x;
         this.targetY = y;
         this.isMoving = false;
-        this.movementSpeed = 150; // Pixels per second, adjust as needed
+        this.movementSpeed = 150;
+        this.interactionTargetHotspot = null; // New property
     }
 
-    moveTo(x, y) {
+    moveTo(x, y, targetHotspot = null) { // Added targetHotspot parameter
         // Centering logic for target
         let intendedTargetX = x - this.width / 2;
         let intendedTargetY = y - this.height / 2;
@@ -39,6 +40,7 @@ class Detective {
         this.targetX = intendedTargetX;
         this.targetY = intendedTargetY;
         this.isMoving = true;
+        this.interactionTargetHotspot = targetHotspot; // Store the hotspot
     }
 
     update(deltaTime) {
@@ -56,6 +58,13 @@ class Detective {
             this.x = this.targetX;
             this.y = this.targetY;
             this.isMoving = false;
+
+            if (this.interactionTargetHotspot) {
+                if (this.interactionTargetHotspot.isEnabled) { // Good practice to check if hotspot is still enabled
+                    this.interactionTargetHotspot.trigger();
+                }
+                this.interactionTargetHotspot = null; // Clear after triggering or attempting to trigger
+            }
         } else {
             // Move towards target
             this.x += (dx / distance) * moveAmount;

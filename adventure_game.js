@@ -309,24 +309,39 @@ function goToScene(sceneId) {
 
 // Canvas click event listener
 canvas.addEventListener('click', function(event) {
+    if (!currentScene || !detective) return; // Basic safety check
+
     const rect = canvas.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
-    let hotspotClicked = false;
-    if (currentScene && currentScene.hotspots) {
-        for (const hotspot of currentScene.hotspots) {
+    let clickedHotspot = null;
+    if (currentScene.hotspots) {
+        // Iterate in reverse to prioritize top-most hotspots if they overlap
+        for (let i = currentScene.hotspots.length - 1; i >= 0; i--) {
+            const hotspot = currentScene.hotspots[i];
             if (hotspot.isClicked(mouseX, mouseY)) {
-                hotspot.trigger(); // Use the trigger method
-                hotspotClicked = true;
+                clickedHotspot = hotspot;
                 break;
             }
         }
     }
 
-    // Move detective regardless of hotspot click for now
-    if (detective) {
-        detective.moveTo(mouseX, mouseY);
+    if (clickedHotspot) {
+        // Player clicked on a hotspot.
+        // Move detective to the center of the hotspot, and set it as interaction target.
+        // The detective's width/height are taken into account by its moveTo method for final placement.
+        const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
+        const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
+
+        detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+        console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
+
+    } else {
+        // Player clicked on empty ground. Move detective there with no interaction target.
+        // The detective's moveTo method will center the detective graphic on mouseX, mouseY.
+        detective.moveTo(mouseX, mouseY, null);
+        console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
     }
 });
 
