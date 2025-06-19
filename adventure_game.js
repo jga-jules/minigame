@@ -133,6 +133,14 @@ function initGame() {
 
     // Scene 1 Setup
     scene1.addEntryPoint('entryFromS2', 550 - (30/2), canvas.height / 2);
+
+    const DETECTIVE_ICON_WIDTH = 30;
+    const DETECTIVE_ICON_HEIGHT = 50;
+    const mainSceneWidthForSpawn = canvas.width - INVENTORY_WIDTH;
+    const spawnX_s1 = (mainSceneWidthForSpawn / 2) - (DETECTIVE_ICON_WIDTH / 2);
+    const spawnY_s1 = (canvas.height / 2) - (DETECTIVE_ICON_HEIGHT / 2);
+    scene1.addEntryPoint('initialSpawnPoint', spawnX_s1, spawnY_s1);
+
     scene1.addBackgroundText("class Scene1_Main {", 50, 100);
     scene1.addBackgroundText("  // Primary code editor view", 70, 150);
     scene1.addBackgroundText("  void checkSystem() {", 90, 200);
@@ -161,8 +169,21 @@ function initGame() {
 
     currentScene = gameScenes['scene1_id']; // Start in scene 1
 
-    detective = new Detective(currentScene.defaultStartX, currentScene.defaultStartY);
-    currentScene.setDetective(detective);
+    // Detective creation and initial placement
+    const initialEntryPoint = currentScene.getEntryPoint('initialSpawnPoint');
+
+    if (!detective) { // Create detective only if it doesn't exist (e.g. first load)
+        detective = new Detective(initialEntryPoint.x, initialEntryPoint.y);
+    } else { // If detective exists (e.g. from a game restart calling initGame), just move it
+        detective.x = initialEntryPoint.x;
+        detective.y = initialEntryPoint.y;
+        detective.targetX = initialEntryPoint.x;
+        detective.targetY = initialEntryPoint.y;
+        detective.isMoving = false;
+        detective.interactionTargetHotspot = null;
+    }
+
+    currentScene.setDetective(detective); // Associate detective with the current scene
 
     // Reset score and bug counts for the new game/scene structure
     score = 0;
