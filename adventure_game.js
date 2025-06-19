@@ -230,6 +230,11 @@ function initGame() {
     let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
     let vio1_s2, vio2_s3; // New Violet Bugs
 
+    // Define Name Constants for items involved in combination
+    const VIOLET_FRAGMENT_ALPHA_NAME = "Violet Fragment Alpha";
+    const VIOLET_FRAGMENT_BETA_NAME = "Violet Fragment Beta";
+    const SHINING_VIOLET_GEM_NAME = "Shining Violet Gem";
+
     // Item Combination Recipes
     const itemCombinations = [];
 
@@ -246,8 +251,8 @@ function initGame() {
     r2_s3 = new Bug(200, 200, 'red', pointsRed, "Red Bug R2");
     g2_s3 = new Bug(200, 250, 'gray', pointsGray, "Gray Bug G2");
 
-    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, "Violet Fragment Alpha"); // BlueViolet color
-    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, "Violet Fragment Beta");
+    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_ALPHA_NAME);
+    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME);
 
     // --- SCENE 1 Bugs & Hotspots ---
     scene1.bugs = []; scene1.hotspots = [];
@@ -365,17 +370,17 @@ function initGame() {
     winnableItemNames.push("Green Bug V1", "Orange Bug O1", "Gray Bug G1",
                           "Red Bug R1", "Green Bug V2",
                           "Red Bug R2", "Gray Bug G2",
-                          "Shining Violet Gem");
+                          SHINING_VIOLET_GEM_NAME); // Use constant
     totalWinnableItems = winnableItemNames.length;
     console.log("Winnable items:", winnableItemNames, "Total to win:", totalWinnableItems);
 
     // Initialize Item Combination Recipes (after bug names are defined)
     itemCombinations.length = 0; // Clear array
     itemCombinations.push({
-        item1Name: "Violet Fragment Alpha",
-        item2Name: "Violet Fragment Beta",
+        item1Name: VIOLET_FRAGMENT_ALPHA_NAME,
+        item2Name: VIOLET_FRAGMENT_BETA_NAME,
         resultItem: {
-            name: "Shining Violet Gem",
+            name: SHINING_VIOLET_GEM_NAME,
             color: "magenta",
             points: 100
         }
