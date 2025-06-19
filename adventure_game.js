@@ -13,6 +13,7 @@ let totalWinnableItems = 0;   // Length of winnableItemNames
 let gameWon = false;
 let foundBugsInventory = [];
 let selectedInventoryItem = null; // For storing the currently selected bug from inventory
+const itemCombinations = []; // MOVED TO GLOBAL SCOPE
 let lastTime = 0; // Declare lastTime globally
 
 // Inventory area parameters
