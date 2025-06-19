@@ -1,9 +1,17 @@
 class Scene {
-    constructor(backgroundColor = '#808080') { // Default to a medium gray for the scene
+    constructor(id, backgroundColor = '#808080') {
+        this.id = id;
         this.backgroundColor = backgroundColor;
-        this.hotspots = []; // Will be used later
-        this.bugs = [];     // Will be used later
-        this.detective = null; // Will be set by adventure_game.js
+        this.hotspots = [];
+        this.bugs = [];
+        this.detective = null;
+        this.defaultStartX = 0;
+        this.defaultStartY = 0;
+        this.backgroundTextLines = []; // For unique text per scene
+    }
+
+    addBackgroundText(text, x, y, font = 'bold 48px monospace', color = '#C0C0C0', textAlign = 'left') {
+        this.backgroundTextLines.push({ text, x, y, font, color, textAlign });
     }
 
     addHotspot(hotspot) {
