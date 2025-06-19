@@ -50,26 +50,23 @@ class Scene {
             ctx.fillStyle = line.color;
             ctx.font = line.font;
             ctx.textAlign = line.textAlign;
+            ctx.textBaseline = 'top'; // Good practice for text
             ctx.fillText(line.text, line.x, line.y);
         });
 
-        // 3. Draw found bugs (should still be commented out or removed from here)
-        /*
-        this.bugs.forEach(bug => {
-            // The bug.draw method itself checks if it's found
-            bug.draw(ctx);
+        // 3. Draw hotspots (drawn BEFORE detective)
+        //    (Their draw method already handles isEnabled and iconType)
+        this.hotspots.forEach(hotspot => {
+            hotspot.draw(ctx);
         });
-        */
 
-        // 3. Draw detective (for later)
+        // 4. Draw detective (drawn AFTER hotspots)
         if (this.detective) {
-            this.detective.draw(ctx); // Call detective's draw method
+            this.detective.draw(ctx);
         }
 
-        // 4. Draw hotspots (for debugging, for later)
-        this.hotspots.forEach(hotspot => {
-            hotspot.draw(ctx); // Call hotspot's draw method
-        });
+        // Note: Bugs are drawn via inventory UI, not directly in scene here.
+        // The old bug drawing loop should remain commented out/removed.
     }
 }
 

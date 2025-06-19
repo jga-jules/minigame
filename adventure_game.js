@@ -53,12 +53,19 @@ function drawUI(ctx) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top'; // Ensure text draws predictably from top
 
-    // Display current scene ID for debugging
-    if (currentScene) {
-        ctx.fillText(`Scene: ${currentScene.id}`, canvas.width - INVENTORY_X - 150, 10); // Show scene ID
+    let uiLineY = 10;
+    const uiLineHeight = 22; // Spacing for 18px font
+
+    ctx.fillText(`Score: ${score}`, 10, uiLineY);
+    uiLineY += uiLineHeight;
+
+    if (currentScene && currentScene.id) { // Display current scene ID for debugging
+        ctx.fillText(`Scene: ${currentScene.id}`, 10, uiLineY);
+        uiLineY += uiLineHeight;
     }
-    ctx.fillText(`Score: ${score}`, 10, 10); // Adjusted Y for clarity
-    ctx.fillText(`Bugs Found: ${bugsFoundCount} / ${totalBugsInGame}`, 10, 35); // Uses totalBugsInGame
+
+    ctx.fillText(`Bugs Found: ${bugsFoundCount} / ${totalBugsInGame}`, 10, uiLineY);
+    // uiLineY += uiLineHeight; // Increment if more lines follow here
 
     // --- Inventory Panel (Right Side) ---
     // Background for inventory
