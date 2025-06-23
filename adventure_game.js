@@ -133,6 +133,11 @@ function drawUI(ctx) {
     });
 
     // --- Draw Combine Button ---
+    console.log("Attempting to draw Combine Button. Canvas:", canvas.width, "x", canvas.height);
+    console.log("Inventory Panel: X:", INVENTORY_X, "Y:", INVENTORY_Y, "W:", INVENTORY_WIDTH, "H:", INVENTORY_HEIGHT);
+    console.log("Combine Button Params: X:", COMBINE_BUTTON_X, "Y:", COMBINE_BUTTON_Y, "W:", COMBINE_BUTTON_WIDTH, "H:", COMBINE_BUTTON_HEIGHT, "Margin:", COMBINE_BUTTON_MARGIN);
+    console.log("Selected items for button color:", selectedInventoryItems.length);
+
     // Button background
     ctx.fillStyle = '#4CAF50'; // Green color for the button
     if (selectedInventoryItems.length === 2) {
