@@ -18,6 +18,7 @@ let lastTime = 0; // Declare lastTime globally
 
 let latestLogMessage = "Welcome to Detective Polyspace!"; // For displaying game messages to the user
 let currentInteractionMode = 'normal'; // Possible values: 'normal', 'usingItem', 'exploring'
+let cursorCurrentlyOverHotspot = false; // Tracks if the cursor is currently set to a hotspot-specific style
 
 const GENERIC_EXPLORE_MESSAGES = [
     "The digital hum of the datasphere is strong here.",
@@ -742,6 +743,45 @@ canvas.addEventListener('click', function(event) {
         }
     }
 });
+
+// Reset cursor when mouse leaves the canvas
+canvas.addEventListener('mouseleave', function() {
+    if (cursorCurrentlyOverHotspot) { // Only reset if it was a hotspot cursor
+        canvas.style.cursor = 'default';
+        cursorCurrentlyOverHotspot = false;
+    }
+});
+
+// Mousemove listener for cursor changes over hotspots
+canvas.addEventListener('mousemove', function(event) {
+    if (!currentScene) return; // Only process if a scene is active
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    let nowOverHotspot = false;
+    if (currentScene.hotspots) {
+        for (let i = currentScene.hotspots.length - 1; i >= 0; i--) {
+            const hotspot = currentScene.hotspots[i];
+            // Use isClicked as it checks bounds and hotspot.isEnabled
+            if (hotspot.isClicked(mouseX, mouseY)) {
+                nowOverHotspot = true;
+                break;
+            }
+        }
+    }
+
+    // Update cursor only if the state changes
+    if (nowOverHotspot && !cursorCurrentlyOverHotspot) {
+        canvas.style.cursor = 'pointer';
+        cursorCurrentlyOverHotspot = true;
+    } else if (!nowOverHotspot && cursorCurrentlyOverHotspot) {
+        canvas.style.cursor = 'default';
+        cursorCurrentlyOverHotspot = false;
+    }
+});
+
 
 // Start the game
 initGame();
