@@ -6,7 +6,9 @@ class Hotspot {
                 onUseItemSuccessAction = null,
                 onUseItemFailureAction = null,
                 iconType = 'debugRect', // Default to debugRect for existing/unspecified
-                associatedBug = null) {
+                associatedBug = null,
+                exploreText = `This is a ${name || 'hotspot'}. It looks interactive.` // Default explore text
+                ) {
         this.x = x;
         this.y = y;
         this.width = width;
@@ -21,6 +23,7 @@ class Hotspot {
 
         this.iconType = iconType;
         this.associatedBug = associatedBug;
+        this.exploreText = exploreText; // Store the explore text
     }
 
     isClicked(mouseX, mouseY) {

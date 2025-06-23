@@ -17,6 +17,18 @@ const itemCombinations = []; // MOVED TO GLOBAL SCOPE
 let lastTime = 0; // Declare lastTime globally
 
 let latestLogMessage = "Welcome to Detective Polyspace!"; // For displaying game messages to the user
+let currentInteractionMode = 'normal'; // Possible values: 'normal', 'usingItem', 'exploring'
+
+const GENERIC_EXPLORE_MESSAGES = [
+    "The digital hum of the datasphere is strong here.",
+    "Loose data packets drift by like digital tumbleweeds.",
+    "This area seems stable, for now.",
+    "You sense a faint anomaly nearby, or is it just your compiler acting up?",
+    "A lingering echo of forgotten code whispers in the silence.",
+    "It's quiet... too quiet?",
+    "The structure of this code is fascinatingly complex.",
+    "You find a commented-out block: /* TODO: Add more interesting things here */"
+];
 
 // Inventory area parameters
 const INVENTORY_WIDTH = 200;
@@ -38,6 +50,26 @@ const LOG_AREA_X = 0; // Start from the left edge
 const LOG_AREA_WIDTH = canvas.width - INVENTORY_WIDTH; // Span game area, not inventory
 const LOG_TEXT_MARGIN = 5; // Padding for text inside the log area
 const LOG_FONT_SIZE = 14;
+
+// Action Button Layout (Explore, Use, Combine)
+const ACTION_BUTTON_HEIGHT = 30; // Height for Use and Explore buttons
+const ACTION_BUTTON_MARGIN = 8;  // Vertical margin between action buttons
+// Horizontal margin for all action buttons to align them and give padding from inventory edge
+const ACTION_BUTTON_SIDE_MARGIN = COMBINE_BUTTON_MARGIN; // Use same as Combine button's original side margin
+const ACTION_BUTTON_WIDTH = INVENTORY_WIDTH - 2 * ACTION_BUTTON_SIDE_MARGIN;
+
+// COMBINE button is the lowest of the three main action buttons
+// Its X, Y, Width, Height are already defined:
+// const COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT
+
+// USE button sits above COMBINE
+const USE_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
+const USE_BUTTON_Y = COMBINE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
+
+// EXPLORE button sits above USE
+const EXPLORE_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
+const EXPLORE_BUTTON_Y = USE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
+
 
 // Inventory Item Layout Constants (moved to global scope)
 const INV_ITEM_PADDING = 5; // Renamed from itemPadding to avoid potential future global conflicts
@@ -121,8 +153,8 @@ function drawUI(ctx) {
     foundBugsInventory.forEach((bug, index) => {
         // Basic check to prevent drawing too many items if inventory is very full
         // A more robust solution would involve a scrollable inventory
-        // Use global constants INV_LINE_HEIGHT and INV_ITEM_PADDING
-        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > COMBINE_BUTTON_Y - COMBINE_BUTTON_MARGIN) {
+        // Items should stop drawing before the EXPLORE_BUTTON_Y minus its top margin
+        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > EXPLORE_BUTTON_Y - ACTION_BUTTON_MARGIN) {
             return;
         }
         const itemAreaX = INVENTORY_X + INV_ITEM_PADDING / 2;
@@ -154,25 +186,42 @@ function drawUI(ctx) {
     console.log("Combine Button Params: X:", COMBINE_BUTTON_X, "Y:", COMBINE_BUTTON_Y, "W:", COMBINE_BUTTON_WIDTH, "H:", COMBINE_BUTTON_HEIGHT, "Margin:", COMBINE_BUTTON_MARGIN);
     console.log("Selected items for button color:", selectedInventoryItems.length);
 
-    // Button background
-    ctx.fillStyle = '#4CAF50'; // Green color for the button
-    if (selectedInventoryItems.length === 2) {
-        ctx.fillStyle = '#388E3C'; // Darker green if exactly 2 items are selected
-    } else if (selectedInventoryItems.length !== 0 && selectedInventoryItems.length !== 2) {
-        ctx.fillStyle = '#FFC107'; // Amber/Orange if items selected but not 2 (to indicate invalid number for combine)
-    }
-    ctx.fillRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
-
-    // Button border
-    ctx.strokeStyle = '#2E7D32'; // Darker green border
+    // --- Draw EXPLORE Button ---
+    let exploreButtonText = "Explore";
+    ctx.fillStyle = (currentInteractionMode === 'exploring') ? '#0056b3' : (currentInteractionMode === 'normal' ? '#007bff' : '#6c757d'); // Blue, dark blue (active), gray (disabled)
+    ctx.fillRect(EXPLORE_BUTTON_X, EXPLORE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.strokeStyle = (currentInteractionMode === 'exploring') ? '#003f80' : '#0056b3';
     ctx.lineWidth = 2;
-    ctx.strokeRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
-
-    // Button text
-    ctx.fillStyle = '#FFFFFF'; // White text
-    ctx.font = 'bold 18px Arial';
+    ctx.strokeRect(EXPLORE_BUTTON_X, EXPLORE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 16px Arial'; // Slightly smaller font for these buttons
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    if (currentInteractionMode === 'exploring') exploreButtonText = "Cancel Explore";
+    ctx.fillText(exploreButtonText, EXPLORE_BUTTON_X + ACTION_BUTTON_WIDTH / 2, EXPLORE_BUTTON_Y + ACTION_BUTTON_HEIGHT / 2);
+
+    // --- Draw USE Button ---
+    let useButtonText = "Use Item";
+    const canUse = selectedInventoryItems.length === 1;
+    ctx.fillStyle = (currentInteractionMode === 'usingItem') ? '#1e7e34' : (currentInteractionMode === 'normal' && canUse ? '#28a745' : '#6c757d'); // Green, dark green (active), gray (disabled)
+    ctx.fillRect(USE_BUTTON_X, USE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.strokeStyle = (currentInteractionMode === 'usingItem') ? '#155724' : (currentInteractionMode === 'normal' && canUse ? '#1e7e34' : '#545b62');
+    ctx.strokeRect(USE_BUTTON_X, USE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    // Font, textAlign, textBaseline already set from Explore button
+    if (currentInteractionMode === 'usingItem') useButtonText = "Cancel Use";
+    ctx.fillText(useButtonText, USE_BUTTON_X + ACTION_BUTTON_WIDTH / 2, USE_BUTTON_Y + ACTION_BUTTON_HEIGHT / 2);
+
+    // --- Draw COMBINE Button (existing logic, with slight adjustment for consistency if needed) ---
+    // Ensure it's disabled visually if not in 'normal' mode or wrong item count
+    const canCombine = selectedInventoryItems.length === 2;
+    ctx.fillStyle = (currentInteractionMode === 'normal' && canCombine) ? '#388E3C' : (currentInteractionMode === 'normal' && selectedInventoryItems.length !==0 && !canCombine ? '#FFC107' : (currentInteractionMode === 'normal' ? '#4CAF50' : '#6c757d'));
+    ctx.fillRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
+    ctx.strokeStyle = (currentInteractionMode === 'normal' && canCombine) ? '#2E7D32' : '#545b62';
+    ctx.strokeRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 18px Arial'; // Keep Combine button font slightly larger
+    // textAlign, textBaseline already set
     ctx.fillText('Combine', COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH / 2, COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT / 2);
 
     // --- Draw Log Message Area ---
@@ -553,15 +602,53 @@ canvas.addEventListener('click', function(event) {
     if (mouseX >= INVENTORY_X && mouseX <= INVENTORY_X + INVENTORY_WIDTH &&
         mouseY >= INVENTORY_Y && mouseY <= INVENTORY_Y + INVENTORY_HEIGHT) {
 
+        // Check if Explore button was clicked
+        if (mouseX >= EXPLORE_BUTTON_X && mouseX <= EXPLORE_BUTTON_X + ACTION_BUTTON_WIDTH &&
+            mouseY >= EXPLORE_BUTTON_Y && mouseY <= EXPLORE_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
+            if (currentInteractionMode === 'exploring') {
+                currentInteractionMode = 'normal';
+                latestLogMessage = "Explore mode cancelled.";
+            } else if (currentInteractionMode === 'normal') {
+                currentInteractionMode = 'exploring';
+                latestLogMessage = "Explore mode: Click on an object or area in the scene.";
+            }
+            // If in 'usingItem' mode, clicking Explore does nothing or could show a message "Finish using item first"
+            // For now, it will do nothing if not 'normal' or 'exploring'
+            console.log("Explore button clicked. Mode:", currentInteractionMode);
+            return; // Click handled
+        }
+
+        // Check if Use button was clicked
+        if (mouseX >= USE_BUTTON_X && mouseX <= USE_BUTTON_X + ACTION_BUTTON_WIDTH &&
+            mouseY >= USE_BUTTON_Y && mouseY <= USE_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
+            if (currentInteractionMode === 'usingItem') {
+                currentInteractionMode = 'normal';
+                latestLogMessage = "Use cancelled.";
+                // selectedInventoryItems = []; // Optional: clear selection on cancel
+            } else if (currentInteractionMode === 'normal' && selectedInventoryItems.length === 1) {
+                currentInteractionMode = 'usingItem';
+                latestLogMessage = `Using ${selectedInventoryItems[0].name}. Click a hotspot to use it, or 'Cancel Use'.`;
+            } else if (currentInteractionMode === 'normal' && selectedInventoryItems.length !== 1) {
+                latestLogMessage = "Select exactly one item to use.";
+            }
+            // If in 'exploring' mode, clicking Use does nothing
+            console.log("Use button clicked. Mode:", currentInteractionMode);
+            return; // Click handled
+        }
+
         // Check if Combine button was clicked
         if (mouseX >= COMBINE_BUTTON_X && mouseX <= COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH &&
             mouseY >= COMBINE_BUTTON_Y && mouseY <= COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT) {
-            console.log("Combine button clicked");
-            attemptCombination(); // Call attemptCombination, which now uses selectedInventoryItems
+            if (currentInteractionMode === 'normal') { // Only allow combine in normal mode
+                console.log("Combine button clicked");
+                attemptCombination();
+            } else {
+                latestLogMessage = "Cannot combine items while in another mode.";
+            }
             return; // Click handled by Combine button
         }
 
-        // Click is within the inventory panel bounds (but not the combine button)
+        // Click is within the inventory panel bounds (but not the action buttons)
         let clickedInventoryItemIndex = -1;
         for (let i = 0; i < foundBugsInventory.length; i++) {
             // Use global constants for item layout calculations
@@ -602,10 +689,11 @@ canvas.addEventListener('click', function(event) {
         return;
     }
 
-    // --- Existing Main Scene Click Logic (Hotspots & Movement) ---
+    // --- Main Scene Click Logic (Hotspots & Movement) based on Interaction Mode ---
+
+    // First, determine if a hotspot was clicked, regardless of mode (needed for all modes)
     let clickedHotspot = null;
     if (currentScene.hotspots) {
-        // Iterate in reverse to prioritize top-most hotspots if they overlap
         for (let i = currentScene.hotspots.length - 1; i >= 0; i--) {
             const hotspot = currentScene.hotspots[i];
             if (hotspot.isClicked(mouseX, mouseY)) {
@@ -615,21 +703,43 @@ canvas.addEventListener('click', function(event) {
         }
     }
 
-    if (clickedHotspot) {
-        // Player clicked on a hotspot.
-        // Move detective to the center of the hotspot, and set it as interaction target.
-        const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
-        const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
+    if (currentInteractionMode === 'usingItem') {
+        if (clickedHotspot) {
+            // Attempt to use the selected item on this hotspot
+            latestLogMessage = `Using ${selectedInventoryItems[0].name} on ${clickedHotspot.name}...`;
+            // Detective moves to hotspot, and upon arrival, Hotspot.trigger() is called.
+            // Hotspot.trigger() already uses selectedInventoryItems.
+            const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
+            const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+        } else {
+            // Clicked on empty ground while in 'usingItem' mode
+            latestLogMessage = "Use cancelled. Clicked on empty ground.";
+        }
+        currentInteractionMode = 'normal'; // Exit 'usingItem' mode after any scene click
+        // Note: selectedInventoryItems is NOT cleared here. It's cleared on successful use/combination or manually by user.
 
-        detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
-        latestLogMessage = `Moving to interact with ${clickedHotspot.name}...`;
-        console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
+    } else if (currentInteractionMode === 'exploring') {
+        if (clickedHotspot) {
+            latestLogMessage = clickedHotspot.exploreText || `You examine the ${clickedHotspot.name}. Nothing more to note.`;
+        } else {
+            // Select a random generic message for empty ground
+            latestLogMessage = GENERIC_EXPLORE_MESSAGES[Math.floor(Math.random() * GENERIC_EXPLORE_MESSAGES.length)];
+        }
+        currentInteractionMode = 'normal'; // Exit 'exploring' mode after one click
 
-    } else {
-        // Player clicked on empty ground. Move detective there with no interaction target.
-        detective.moveTo(mouseX, mouseY, null);
-        latestLogMessage = `Moving to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
-        console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
+    } else { // currentInteractionMode === 'normal'
+        if (clickedHotspot) {
+            const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
+            const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+            latestLogMessage = `Moving to interact with ${clickedHotspot.name}...`;
+            console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
+        } else {
+            detective.moveTo(mouseX, mouseY, null);
+            latestLogMessage = `Moving to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
+            console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
+        }
     }
 });
 
