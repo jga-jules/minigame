@@ -746,10 +746,8 @@ canvas.addEventListener('click', function(event) {
 
 // Reset cursor when mouse leaves the canvas
 canvas.addEventListener('mouseleave', function() {
-    if (cursorCurrentlyOverHotspot) { // Only reset if it was a hotspot cursor
-        canvas.style.cursor = 'default';
-        cursorCurrentlyOverHotspot = false;
-    }
+    canvas.style.cursor = 'default'; // Always reset to default on mouse leave
+    cursorCurrentlyOverHotspot = false; // Ensure flag is reset
 });
 
 // Mousemove listener for cursor changes over hotspots
@@ -760,26 +758,34 @@ canvas.addEventListener('mousemove', function(event) {
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
-    let nowOverHotspot = false;
+    let desiredCursor = 'default';
+    let isOverActiveHotspot = false;
+
     if (currentScene.hotspots) {
         for (let i = currentScene.hotspots.length - 1; i >= 0; i--) {
             const hotspot = currentScene.hotspots[i];
-            // Use isClicked as it checks bounds and hotspot.isEnabled
-            if (hotspot.isClicked(mouseX, mouseY)) {
-                nowOverHotspot = true;
+            if (hotspot.isClicked(mouseX, mouseY)) { // isClicked also checks isEnabled
+                isOverActiveHotspot = true;
+                if (hotspot.requiredItemName) {
+                    if (currentInteractionMode === 'usingItem' &&
+                        selectedInventoryItems.length === 1 &&
+                        selectedInventoryItems[0].name === hotspot.requiredItemName) {
+                        desiredCursor = 'copy'; // Correct item selected in 'use' mode
+                    } else {
+                        desiredCursor = 'help'; // Needs an item, but not correctly prepared
+                    }
+                } else {
+                    desiredCursor = 'pointer'; // Standard interactive hotspot
+                }
                 break;
             }
         }
     }
 
-    // Update cursor only if the state changes
-    if (nowOverHotspot && !cursorCurrentlyOverHotspot) {
-        canvas.style.cursor = 'pointer';
-        cursorCurrentlyOverHotspot = true;
-    } else if (!nowOverHotspot && cursorCurrentlyOverHotspot) {
-        canvas.style.cursor = 'default';
-        cursorCurrentlyOverHotspot = false;
+    if (canvas.style.cursor !== desiredCursor) {
+        canvas.style.cursor = desiredCursor;
     }
+    cursorCurrentlyOverHotspot = isOverActiveHotspot; // Update global flag
 });
 
 
