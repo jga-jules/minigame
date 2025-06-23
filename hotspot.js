@@ -29,7 +29,7 @@ class Hotspot {
                mouseY >= this.y && mouseY <= this.y + this.height;
     }
 
-    trigger() {
+    trigger(setMessageCallback = (msg) => { console.log("Log (from Hotspot):", msg); }) { // Add setMessageCallback with a default
         if (!this.isEnabled) return;
 
         // Assumes selectedInventoryItems is a global array from adventure_game.js
@@ -38,9 +38,10 @@ class Hotspot {
             if (selectedInventoryItems && selectedInventoryItems.length === 1) {
                 itemToUse = selectedInventoryItems[0];
             } else if (selectedInventoryItems && selectedInventoryItems.length > 1) {
-                console.log(`Hotspot ${this.name} requires a single item, but multiple are selected. Please select only one item to use.`);
+                const message = `Hotspot ${this.name}: Requires a single item, but multiple are selected.`;
+                setMessageCallback(message);
+                console.log(message);
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    // Pass null or a specific message indicating too many items selected
                     this.onUseItemFailureAction(null, "Too many items selected");
                 }
                 return;
@@ -48,34 +49,33 @@ class Hotspot {
 
             if (itemToUse && itemToUse.name === this.requiredItemName) {
                 if (typeof this.onUseItemSuccessAction === 'function') {
-                    this.onUseItemSuccessAction();
-                    // Potentially clear selectedInventoryItems or remove the used item after successful use
-                    // For now, let adventure_game.js handle item removal if needed via the success action.
-                    // selectedInventoryItems = []; // Example: clear selection after use
-                    return;
+                    this.onUseItemSuccessAction(); // This action in adventure_game.js can set its own message
+                    // setMessageCallback(`${this.name}: Used ${itemToUse.name} successfully.`); // Or set a generic one here
                 } else {
-                    console.log(`Hotspot ${this.name} was used with correct item ${itemToUse.name}, but no success action defined.`);
+                    const message = `${this.name}: Used ${itemToUse.name}, but no success action defined.`;
+                    setMessageCallback(message);
+                    console.log(message);
                 }
             } else {
-                // This block handles cases where:
-                // 1. No item is selected (itemToUse is null because selectedInventoryItems is empty)
-                // 2. One item is selected, but it's the wrong item.
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    this.onUseItemFailureAction(itemToUse); // itemToUse will be null if nothing was selected
+                    this.onUseItemFailureAction(itemToUse); // This action in adv_game.js can set its own message
                 } else {
+                    // Generic failure messages if no specific failure action is defined by the hotspot instance
                     if (itemToUse) {
-                        console.log(`Using ${itemToUse.name} on ${this.name} doesn't seem to work.`);
+                        setMessageCallback(`Using ${itemToUse.name} on ${this.name} doesn't seem to work.`);
                     } else {
-                        console.log(`${this.name} might need a specific item. Nothing selected or suitable.`);
+                        setMessageCallback(`${this.name} might need a specific item. Nothing selected or suitable.`);
                     }
                 }
+                // Return here as the specific failure action (if any) or the generic message has been handled.
                 return;
             }
         } else if (typeof this.onClickAction === 'function') {
-            // Hotspot does not require an item, just perform its click action
-            this.onClickAction();
+            this.onClickAction(); // This action in adventure_game.js can set its own message
         } else {
-            console.log(`Hotspot ${this.name} clicked, but has no defined action.`);
+            const message = `${this.name}: Clicked, but has no defined action.`;
+            setMessageCallback(message);
+            console.log(message);
         }
     }
 

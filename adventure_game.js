@@ -16,6 +16,8 @@ let selectedInventoryItems = []; // Changed from selectedInventoryItem to suppor
 const itemCombinations = []; // MOVED TO GLOBAL SCOPE
 let lastTime = 0; // Declare lastTime globally
 
+let latestLogMessage = "Welcome to Detective Polyspace!"; // For displaying game messages to the user
+
 // Inventory area parameters
 const INVENTORY_WIDTH = 200;
 const INVENTORY_X = canvas.width - INVENTORY_WIDTH;
@@ -28,6 +30,14 @@ const COMBINE_BUTTON_MARGIN = 10;
 const COMBINE_BUTTON_X = INVENTORY_X + COMBINE_BUTTON_MARGIN;
 const COMBINE_BUTTON_Y = INVENTORY_HEIGHT - COMBINE_BUTTON_HEIGHT - COMBINE_BUTTON_MARGIN;
 const COMBINE_BUTTON_WIDTH = INVENTORY_WIDTH - 2 * COMBINE_BUTTON_MARGIN;
+
+// Log Area parameters
+const LOG_AREA_HEIGHT = 30; // Height of the log message bar
+const LOG_AREA_Y = canvas.height - LOG_AREA_HEIGHT; // Position it at the very bottom
+const LOG_AREA_X = 0; // Start from the left edge
+const LOG_AREA_WIDTH = canvas.width - INVENTORY_WIDTH; // Span game area, not inventory
+const LOG_TEXT_MARGIN = 5; // Padding for text inside the log area
+const LOG_FONT_SIZE = 14;
 
 // Inventory Item Layout Constants (moved to global scope)
 const INV_ITEM_PADDING = 5; // Renamed from itemPadding to avoid potential future global conflicts
@@ -165,6 +175,27 @@ function drawUI(ctx) {
     ctx.textBaseline = 'middle';
     ctx.fillText('Combine', COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH / 2, COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT / 2);
 
+    // --- Draw Log Message Area ---
+    // Background for log area (semi-transparent)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent black
+    ctx.fillRect(LOG_AREA_X, LOG_AREA_Y, LOG_AREA_WIDTH, LOG_AREA_HEIGHT);
+
+    // Log message text
+    ctx.fillStyle = '#FFFFFF'; // White text
+    ctx.font = `${LOG_FONT_SIZE}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    // Simple truncation if message is too long (a more complex solution would wrap text)
+    const maxTextWidth = LOG_AREA_WIDTH - (2 * LOG_TEXT_MARGIN);
+    let textToDraw = latestLogMessage;
+    if (ctx.measureText(textToDraw).width > maxTextWidth) {
+        while (ctx.measureText(textToDraw + "...").width > maxTextWidth && textToDraw.length > 0) {
+            textToDraw = textToDraw.substring(0, textToDraw.length - 1);
+        }
+        textToDraw += "...";
+    }
+    ctx.fillText(textToDraw, LOG_AREA_X + LOG_TEXT_MARGIN, LOG_AREA_Y + LOG_AREA_HEIGHT / 2);
+
 
     // --- Existing Win Condition Message (Overlay) ---
     if (gameWon) {
@@ -277,15 +308,26 @@ function initGame() {
     scene1.addHotspot(hs_v1_s1);
     scene1.addHotspot(hs_o1_s1);
     const hs_puzzle_for_g1 = new Hotspot(50, 260, 100, 50,
-        function() { console.log("A strange mechanism. It seems to be missing a part."); },
-        "HS_Puzzle_GrayBugLocation", r1_s2.name,
         function() {
-            console.log("The Red Bug R1 fits perfectly! Gray Bug G1 revealed!");
-            findBugAction(g1_s1);
+            latestLogMessage = "A strange mechanism. It seems to be missing a part.";
+            console.log("A strange mechanism. It seems to be missing a part.");
         },
-        function(selectedItem) {
-            if (selectedItem) { console.log(`Using ${selectedItem.name} on the mechanism doesn't work.`); }
-            else { console.log("This looks like it needs something specific."); }
+        "HS_Puzzle_GrayBugLocation", r1_s2.name,
+        function() { // Success action
+            latestLogMessage = `The Red Bug R1 fits perfectly! ${g1_s1.name} revealed!`;
+            console.log("The Red Bug R1 fits perfectly! Gray Bug G1 revealed!");
+            findBugAction(g1_s1); // findBugAction will set its own "Found..." message after this one.
+        },
+        function(selectedItem, failureReason) { // Failure action
+            if (failureReason === "Too many items selected") {
+                latestLogMessage = "Too many items selected. Try using one item.";
+            } else if (selectedItem) {
+                latestLogMessage = `Using ${selectedItem.name} on the mechanism doesn't work.`;
+                console.log(`Using ${selectedItem.name} on the mechanism doesn't work.`);
+            } else {
+                latestLogMessage = "This looks like it needs something specific.";
+                console.log("This looks like it needs something specific.");
+            }
         },
         'bugStrongbox', g1_s1);
     scene1.addHotspot(hs_puzzle_for_g1);
@@ -326,8 +368,14 @@ function initGame() {
     // Set current scene and detective AFTER all scenes are populated
     currentScene = gameScenes['scene1_id'];
     const initialEntryPoint = currentScene.getEntryPoint('initialSpawnPoint');
+
+    // Define the callback for detective arrival messages
+    const detectiveOnArrivalCallback = (message) => {
+        latestLogMessage = message;
+    };
+
     if (!detective) {
-        detective = new Detective(initialEntryPoint.x, initialEntryPoint.y);
+        detective = new Detective(initialEntryPoint.x, initialEntryPoint.y, detectiveOnArrivalCallback);
     } else {
         detective.x = initialEntryPoint.x;
         detective.y = initialEntryPoint.y;
@@ -367,6 +415,7 @@ function attemptCombination() { // Removed item1, item2 from parameters
 
     if (selectedInventoryItems.length !== 2) {
         console.log("[DEBUG] Combination failed: Exactly 2 items must be selected.");
+        latestLogMessage = "Select exactly 2 items to combine.";
         // Do not clear selection here, user might want to adjust selection.
         return false;
     }
@@ -414,12 +463,14 @@ function attemptCombination() { // Removed item1, item2 from parameters
 
             updateWinnableItemsCount(); // Update counts for win condition etc.
             selectedInventoryItems = []; // Clear selection after successful combination
+            latestLogMessage = `Combined ${item1.name} & ${item2.name} into: ${newItem.name}!`;
             console.log(`[DEBUG] Items combined successfully into: ${newItem.name}`);
             return true;
         }
     }
 
     console.log("[DEBUG] FAILURE: No matching recipe found for the selected items.");
+    latestLogMessage = `Cannot combine ${item1Name} and ${item2Name}.`;
     // Do not clear selection here, user might want to try combining with something else or deselect manually.
     return false;
 }
@@ -432,6 +483,7 @@ function findBugAction(bugInstance) {
         if (!foundBugsInventory.includes(bugInstance)) {
             foundBugsInventory.push(bugInstance);
         }
+        latestLogMessage = `Found: ${bugInstance.name}!`;
         updateWinnableItemsCount(); // New call
         // if (winnableItemsInInventoryCount === totalWinnableItems) { gameWon = true; ... } // Remove, handled by updateWinnableItemsCount
     }
@@ -456,6 +508,7 @@ function updateWinnableItemsCount() {
 function goToScene(targetSceneId, entryPointName) {
     if (gameScenes[targetSceneId]) {
         console.log(`Attempting to go to scene: '${targetSceneId}' using entry point: '${entryPointName}'`);
+        latestLogMessage = `Traveling to ${targetSceneId.replace('_id', '')}...`;
 
         if (currentScene && currentScene.setDetective) { // Ensure currentScene is valid and has setDetective
             currentScene.setDetective(null); // Remove detective from old scene
@@ -479,13 +532,8 @@ function goToScene(targetSceneId, entryPointName) {
         } else {
             console.warn("goToScene: Detective object not found.");
         }
-
-        // Any other logic needed on scene change (e.g., playing entry music, etc.)
-        // totalBugsInGame is global and does not change.
-        // bugsFoundCount is also global and persists across scenes.
-        // gameWon status also persists.
-
     } else {
+        latestLogMessage = `Error: Scene '${targetSceneId}' not found!`;
         console.error(`Scene with ID '${targetSceneId}' not found!`);
     }
 }
@@ -574,11 +622,13 @@ canvas.addEventListener('click', function(event) {
         const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
 
         detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+        latestLogMessage = `Moving to interact with ${clickedHotspot.name}...`;
         console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
 
     } else {
         // Player clicked on empty ground. Move detective there with no interaction target.
         detective.moveTo(mouseX, mouseY, null);
+        latestLogMessage = `Moving to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
         console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
     }
 });

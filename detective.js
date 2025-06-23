@@ -1,19 +1,20 @@
 class Detective {
-    constructor(x, y, width = 30, height = 50, color = '#8B4513') {
+    constructor(x, y, onArrivalCallback, width = 30, height = 50, color = '#8B4513') {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.color = color;
+        this.onArrivalCallback = onArrivalCallback; // Store the callback
 
         this.targetX = x;
         this.targetY = y;
         this.isMoving = false;
         this.movementSpeed = 150;
-        this.interactionTargetHotspot = null; // New property
+        this.interactionTargetHotspot = null;
     }
 
-    moveTo(x, y, targetHotspot = null) { // Added targetHotspot parameter
+    moveTo(x, y, targetHotspot = null) {
         // Centering logic for target
         let intendedTargetX = x - this.width / 2;
         let intendedTargetY = y - this.height / 2;
@@ -59,11 +60,39 @@ class Detective {
             this.y = this.targetY;
             this.isMoving = false;
 
+            let arrivalMessage = "Arrived at destination.";
             if (this.interactionTargetHotspot) {
-                if (this.interactionTargetHotspot.isEnabled) { // Good practice to check if hotspot is still enabled
-                    this.interactionTargetHotspot.trigger();
+                if (this.interactionTargetHotspot.isEnabled) {
+                    // Message for arrival at hotspot before triggering, trigger might set its own message.
+                    arrivalMessage = `Arrived at ${this.interactionTargetHotspot.name}.`;
+                    if (typeof this.onArrivalCallback === 'function') {
+                        this.onArrivalCallback(arrivalMessage);
+                    }
+                    // The trigger function will need the setMessageCallback
+                    // This will be passed from adventure_game.js when creating the detective instance,
+                    // and then the detective needs to pass it to the hotspot trigger.
+                    // For now, let's assume adventure_game.js's callback handles latestLogMessage.
+                    // We'll need to pass a setMessageCallback to trigger.
+                    // This part is complex as trigger is called here.
+                    // The onArrivalCallback is for the detective's arrival itself,
+                    // but we can reuse it as the setMessageCallback for the hotspot.
+                    if (typeof this.onArrivalCallback === 'function') {
+                        this.interactionTargetHotspot.trigger(this.onArrivalCallback);
+                    } else {
+                        this.interactionTargetHotspot.trigger(); // Call without callback if none provided to detective
+                    }
+                } else {
+                    arrivalMessage = `Arrived at ${this.interactionTargetHotspot.name}, but it's no longer active.`;
+                    if (typeof this.onArrivalCallback === 'function') {
+                        this.onArrivalCallback(arrivalMessage);
+                    }
                 }
-                this.interactionTargetHotspot = null; // Clear after triggering or attempting to trigger
+                this.interactionTargetHotspot = null;
+            } else {
+                 // Standard arrival message if no hotspot interaction
+                 if (typeof this.onArrivalCallback === 'function') {
+                    this.onArrivalCallback(arrivalMessage); // "Arrived at destination."
+                }
             }
         } else {
             // Move towards target
