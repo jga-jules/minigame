@@ -32,46 +32,44 @@ class Hotspot {
                mouseY >= this.y && mouseY <= this.y + this.height;
     }
 
-    trigger(setMessageCallback = (msg) => { console.log("Log (from Hotspot):", msg); }, currentInteractionMode = 'normal') {
+    trigger(setMessageCallback = (msg) => { console.log("Log (from Hotspot default callback):", msg); }, currentInteractionMode = 'normal') {
+        // Diagnostic log at the very beginning
+        console.log(`Hotspot.trigger: '${this.name}' | Mode: '${currentInteractionMode}' | Requires: '${this.requiredItemName || "N/A"}' | Selected: '${selectedInventoryItems.map(i=>i.name).join(', ') || "None"}' | Enabled: ${this.isEnabled}`);
+
         if (!this.isEnabled) return;
 
-        // If the hotspot requires an item, first check if player is in 'usingItem' mode.
         if (this.requiredItemName) {
+            // Specific log for Ancient Cache before detailed checks
+            if (this.name === "Ancient Cache") {
+                console.log(`Ancient Cache Check: Required: '${this.requiredItemName}' | Current Mode: '${currentInteractionMode}' | Selected Item for Use: ${(currentInteractionMode === 'usingItem' && selectedInventoryItems.length === 1 ? selectedInventoryItems[0].name : "Not in use mode or wrong selection count")}`);
+            }
+
             if (currentInteractionMode !== 'usingItem') {
-                setMessageCallback("You need to be in 'Use' mode. Select an item, click 'Use Item', then click the hotspot.");
+                setMessageCallback("You need to be in 'Use' mode. Select an item, then 'Use Item', then click the hotspot.");
                 return;
             }
 
-            // Proceed with item check only if in 'usingItem' mode
             let itemToUse = null;
             if (selectedInventoryItems && selectedInventoryItems.length === 1) {
                 itemToUse = selectedInventoryItems[0];
-            } else if (selectedInventoryItems && selectedInventoryItems.length > 1) {
-                // This case should ideally be prevented by 'Use' button logic, but as a fallback:
-                const message = `Hotspot ${this.name}: 'Use' mode active, but multiple items selected. Select only one.`;
+            } else {
+                // Handles both multiple items selected or no items selected while in 'useItem' mode.
+                const Rreason = selectedInventoryItems.length > 1 ? "multiple items selected" : "no item selected";
+                const message = `Hotspot '${this.name}': 'Use' mode active, but ${Rreason}. Select only one item to use.`;
                 setMessageCallback(message);
                 console.log(message);
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    // Pass a specific reason if the callback supports it
-                    this.onUseItemFailureAction(null, "Too many items selected while using");
-                }
-                return;
-            } else { // No item selected, though in 'usingItem' mode (e.g. item consumed by previous action)
-                 const message = `Hotspot ${this.name}: 'Use' mode active, but no item is selected.`;
-                setMessageCallback(message);
-                console.log(message);
-                if (typeof this.onUseItemFailureAction === 'function') {
-                     this.onUseItemFailureAction(null, "No item selected while using");
+                    this.onUseItemFailureAction(null, selectedInventoryItems.length > 1 ? "Too many items selected while using" : "No item selected while using");
                 }
                 return;
             }
 
-            // At this point, in 'usingItem' mode and exactly one item is selected.
-            if (itemToUse && itemToUse.name === this.requiredItemName) {
+            // Now itemToUse is guaranteed to be the single selected item.
+            if (itemToUse.name === this.requiredItemName) {
                 if (typeof this.onUseItemSuccessAction === 'function') {
                     this.onUseItemSuccessAction();
                 } else {
-                    const message = `${this.name}: Used ${itemToUse.name}, but no specific success action defined.`;
+                    const message = `${this.name}: Used ${itemToUse.name} successfully, but no specific success action defined.`;
                     setMessageCallback(message);
                     console.log(message);
                 }
@@ -79,17 +77,11 @@ class Hotspot {
                 if (typeof this.onUseItemFailureAction === 'function') {
                     this.onUseItemFailureAction(itemToUse);
                 } else {
-                    if (itemToUse) { // Should always be true here if we passed the selection checks
-                        setMessageCallback(`Cannot use ${itemToUse.name} on ${this.name}.`);
-                    } else { // Should not be reached if logic above is correct
-                        setMessageCallback(`${this.name}: An unknown item error occurred during use.`);
-                    }
+                     setMessageCallback(`Cannot use ${itemToUse.name} on ${this.name}. It's not the right item.`);
                 }
-                return;
+                // No return here, failure action might set message. If not, default message above is set.
             }
         } else if (typeof this.onClickAction === 'function') {
-            // Hotspot does not require an item, standard click action
-            // (Can still be triggered even if in 'usingItem' mode if user clicks a non-item hotspot)
             this.onClickAction();
         } else {
             const message = `${this.name}: Clicked, but has no defined action.`;
