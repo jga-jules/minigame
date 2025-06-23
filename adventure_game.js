@@ -412,6 +412,44 @@ function initGame() {
     scene3.addHotspot(hs_r2_s3_hotspot);
     scene3.addHotspot(hs_g2_s3_hotspot);
     scene3.addHotspot(hs_vio2_s3);
+
+    // Add the new "Ancient Cache" strongbox to Scene 3
+    const ancientCache = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 100, 100, 80, 60, // x, y, width, height (position in top-right of scene3)
+        function() {
+            // This onClickAction is less likely to be triggered if requiredItemName is set,
+            // as interaction will primarily go through 'Use' mode.
+            latestLogMessage = "This ancient cache seems tightly sealed.";
+        },
+        "Ancient Cache", // name
+        SHINING_VIOLET_GEM_NAME, // requiredItemName
+        function() { // onUseItemSuccessAction
+            latestLogMessage = "The Shining Violet Gem fits perfectly! The strongbox clicks open... it reveals a message: 'To be continued...'";
+            // Consider disabling the hotspot after successful use to prevent re-triggering
+            // 'this' inside this callback refers to the hotspot instance IF the action is bound correctly
+            // or if called via an arrow function that captures 'this' from where Hotspot is defined.
+            // However, Hotspot class does not automatically bind 'this' for these callbacks.
+            // So, to disable, we'd need a reference to ancientCache itself.
+            // For now, let's rely on the player not repeatedly using it.
+            // A robust way: ancientCache.isEnabled = false; (if ancientCache is accessible here)
+            // This specific instance 'ancientCache' is accessible here in initGame.
+            ancientCache.isEnabled = false;
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
+                 latestLogMessage = "Select the Shining Violet Gem, click 'Use Item', then click the cache.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} doesn't seem to fit the cache's indentation.`;
+            } else { // This case is for when 'Use' mode wasn't active or item was wrong (handled by Hotspot.trigger)
+                latestLogMessage = "The cache has a peculiar gem-shaped indentation. It might require a specific item used on it.";
+            }
+        },
+        'bugStrongbox', // iconType
+        null, // associatedBug
+        "An ancient, heavily sealed cache. It has a vibrant, gem-shaped indentation." // exploreText
+    );
+    scene3.addHotspot(ancientCache);
+
     const navHotspot_s3_to_s2 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene2_id', 'entryFromS3'); }, "NAV_S3_to_S2", null, null, null, 'door', null);
     scene3.addHotspot(navHotspot_s3_to_s2);
 
@@ -425,8 +463,15 @@ function initGame() {
     };
 
     if (!detective) {
-        detective = new Detective(initialEntryPoint.x, initialEntryPoint.y, detectiveOnArrivalCallback);
+        detective = new Detective(
+            initialEntryPoint.x,
+            initialEntryPoint.y,
+            detectiveOnArrivalCallback,
+            () => currentInteractionMode // Pass a getter for currentInteractionMode
+        );
     } else {
+        // If detective already exists, ensure its callbacks are updated if necessary (though typically only set on init)
+        // For simplicity, we assume callbacks are set once. If re-init needed different ones, more logic here.
         detective.x = initialEntryPoint.x;
         detective.y = initialEntryPoint.y;
         detective.targetX = initialEntryPoint.x;

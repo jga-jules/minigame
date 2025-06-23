@@ -32,49 +32,65 @@ class Hotspot {
                mouseY >= this.y && mouseY <= this.y + this.height;
     }
 
-    trigger(setMessageCallback = (msg) => { console.log("Log (from Hotspot):", msg); }) { // Add setMessageCallback with a default
+    trigger(setMessageCallback = (msg) => { console.log("Log (from Hotspot):", msg); }, currentInteractionMode = 'normal') {
         if (!this.isEnabled) return;
 
-        // Assumes selectedInventoryItems is a global array from adventure_game.js
+        // If the hotspot requires an item, first check if player is in 'usingItem' mode.
         if (this.requiredItemName) {
+            if (currentInteractionMode !== 'usingItem') {
+                setMessageCallback("You need to be in 'Use' mode. Select an item, click 'Use Item', then click the hotspot.");
+                return;
+            }
+
+            // Proceed with item check only if in 'usingItem' mode
             let itemToUse = null;
             if (selectedInventoryItems && selectedInventoryItems.length === 1) {
                 itemToUse = selectedInventoryItems[0];
             } else if (selectedInventoryItems && selectedInventoryItems.length > 1) {
-                const message = `Hotspot ${this.name}: Requires a single item, but multiple are selected.`;
+                // This case should ideally be prevented by 'Use' button logic, but as a fallback:
+                const message = `Hotspot ${this.name}: 'Use' mode active, but multiple items selected. Select only one.`;
                 setMessageCallback(message);
                 console.log(message);
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    this.onUseItemFailureAction(null, "Too many items selected");
+                    // Pass a specific reason if the callback supports it
+                    this.onUseItemFailureAction(null, "Too many items selected while using");
+                }
+                return;
+            } else { // No item selected, though in 'usingItem' mode (e.g. item consumed by previous action)
+                 const message = `Hotspot ${this.name}: 'Use' mode active, but no item is selected.`;
+                setMessageCallback(message);
+                console.log(message);
+                if (typeof this.onUseItemFailureAction === 'function') {
+                     this.onUseItemFailureAction(null, "No item selected while using");
                 }
                 return;
             }
 
+            // At this point, in 'usingItem' mode and exactly one item is selected.
             if (itemToUse && itemToUse.name === this.requiredItemName) {
                 if (typeof this.onUseItemSuccessAction === 'function') {
-                    this.onUseItemSuccessAction(); // This action in adventure_game.js can set its own message
-                    // setMessageCallback(`${this.name}: Used ${itemToUse.name} successfully.`); // Or set a generic one here
+                    this.onUseItemSuccessAction();
                 } else {
-                    const message = `${this.name}: Used ${itemToUse.name}, but no success action defined.`;
+                    const message = `${this.name}: Used ${itemToUse.name}, but no specific success action defined.`;
                     setMessageCallback(message);
                     console.log(message);
                 }
-            } else {
+            } else { // Wrong item selected for use
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    this.onUseItemFailureAction(itemToUse); // This action in adv_game.js can set its own message
+                    this.onUseItemFailureAction(itemToUse);
                 } else {
-                    // Generic failure messages if no specific failure action is defined by the hotspot instance
-                    if (itemToUse) {
-                        setMessageCallback(`Using ${itemToUse.name} on ${this.name} doesn't seem to work.`);
-                    } else {
-                        setMessageCallback(`${this.name} might need a specific item. Nothing selected or suitable.`);
+                    if (itemToUse) { // Should always be true here if we passed the selection checks
+                        setMessageCallback(`Cannot use ${itemToUse.name} on ${this.name}.`);
+                    } else { // Should not be reached if logic above is correct
+                        setMessageCallback(`${this.name}: An unknown item error occurred during use.`);
                     }
                 }
-                // Return here as the specific failure action (if any) or the generic message has been handled.
                 return;
             }
         } else if (typeof this.onClickAction === 'function') {
-            this.onClickAction(); // This action in adventure_game.js can set its own message
+            // Hotspot does not require an item, standard click action
+            // (Can still be triggered even if in 'usingItem' mode if user clicks a non-item hotspot)
+            this.onClickAction();
         } else {
             const message = `${this.name}: Clicked, but has no defined action.`;
             setMessageCallback(message);

@@ -1,11 +1,12 @@
 class Detective {
-    constructor(x, y, onArrivalCallback, width = 30, height = 50, color = '#8B4513') {
+    constructor(x, y, onArrivalCallback, getInteractionModeCallback, width = 30, height = 50, color = '#8B4513') {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
         this.color = color;
-        this.onArrivalCallback = onArrivalCallback; // Store the callback
+        this.onArrivalCallback = onArrivalCallback; // Store the callback for arrival messages
+        this.getInteractionModeCallback = getInteractionModeCallback; // Store callback to get current mode
 
         this.targetX = x;
         this.targetY = y;
@@ -76,10 +77,13 @@ class Detective {
                     // This part is complex as trigger is called here.
                     // The onArrivalCallback is for the detective's arrival itself,
                     // but we can reuse it as the setMessageCallback for the hotspot.
+                    const currentMode = typeof this.getInteractionModeCallback === 'function' ? this.getInteractionModeCallback() : 'normal';
                     if (typeof this.onArrivalCallback === 'function') {
-                        this.interactionTargetHotspot.trigger(this.onArrivalCallback);
+                        this.interactionTargetHotspot.trigger(this.onArrivalCallback, currentMode);
                     } else {
-                        this.interactionTargetHotspot.trigger(); // Call without callback if none provided to detective
+                        // If detective has no onArrivalCallback, hotspot's default setMessageCallback will be used.
+                        // Still pass the mode.
+                        this.interactionTargetHotspot.trigger(undefined, currentMode);
                     }
                 } else {
                     arrivalMessage = `Arrived at ${this.interactionTargetHotspot.name}, but it's no longer active.`;
