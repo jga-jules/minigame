@@ -354,7 +354,7 @@ function initGame() {
     gameLoop();
 }
 
-function attemptCombination(item1, item2) {
+function attemptCombination() { // Removed item1, item2 from parameters
     // This function is now primarily called by the Combine button click.
     // It expects selectedInventoryItems to be populated.
     console.log("[DEBUG] Attempting combination with selected items:", selectedInventoryItems);
