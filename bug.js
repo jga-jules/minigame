@@ -1,6 +1,7 @@
 class Bug {
     constructor(x, y, color = 'red', points = 10, name = 'Unnamed Bug',
-                found = false, isReadable = false, messageTitle = '', messageContent = '') {
+                found = false, isReadable = false, messageTitle = '', messageContent = '',
+                description = '', combineHint = '') {
         this.x = x; // Position - less relevant for pure clue items not drawn in scene
         this.y = y;
         this.width = 20; // Standard size for inventory icon representation
@@ -13,6 +14,9 @@ class Bug {
         this.isReadable = isReadable;
         this.messageTitle = messageTitle;
         this.messageContent = messageContent;
+
+        this.description = description; // General description for inspection
+        this.combineHint = combineHint; // Hint for combinable items
     }
 
     markAsFound() {

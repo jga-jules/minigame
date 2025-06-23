@@ -77,6 +77,10 @@ const USE_BUTTON_Y = COMBINE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MAR
 const EXPLORE_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
 const EXPLORE_BUTTON_Y = USE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
 
+// INSPECT button sits above EXPLORE (making it the topmost action button)
+const INSPECT_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
+const INSPECT_BUTTON_Y = EXPLORE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
+
 
 // Inventory Item Layout Constants (moved to global scope)
 const INV_ITEM_PADDING = 5; // Renamed from itemPadding to avoid potential future global conflicts
@@ -160,8 +164,8 @@ function drawUI(ctx) {
     foundBugsInventory.forEach((bug, index) => {
         // Basic check to prevent drawing too many items if inventory is very full
         // A more robust solution would involve a scrollable inventory
-        // Items should stop drawing before the EXPLORE_BUTTON_Y minus its top margin
-        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > EXPLORE_BUTTON_Y - ACTION_BUTTON_MARGIN) {
+        // Items should stop drawing before the INSPECT_BUTTON_Y minus its top margin
+        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > INSPECT_BUTTON_Y - ACTION_BUTTON_MARGIN) {
             return;
         }
         const itemAreaX = INVENTORY_X + INV_ITEM_PADDING / 2;
@@ -192,6 +196,19 @@ function drawUI(ctx) {
     console.log("Inventory Panel: X:", INVENTORY_X, "Y:", INVENTORY_Y, "W:", INVENTORY_WIDTH, "H:", INVENTORY_HEIGHT);
     console.log("Combine Button Params: X:", COMBINE_BUTTON_X, "Y:", COMBINE_BUTTON_Y, "W:", COMBINE_BUTTON_WIDTH, "H:", COMBINE_BUTTON_HEIGHT, "Margin:", COMBINE_BUTTON_MARGIN);
     console.log("Selected items for button color:", selectedInventoryItems.length);
+
+    // --- Draw INSPECT Button ---
+    const canInspect = currentInteractionMode === 'normal' && selectedInventoryItems.length === 1;
+    ctx.fillStyle = canInspect ? '#6f42c1' : '#6c757d'; // Indigo for enabled, gray for disabled
+    ctx.fillRect(INSPECT_BUTTON_X, INSPECT_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.strokeStyle = canInspect ? '#5a2aa0' : '#545b62';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(INSPECT_BUTTON_X, INSPECT_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText("Inspect Item", INSPECT_BUTTON_X + ACTION_BUTTON_WIDTH / 2, INSPECT_BUTTON_Y + ACTION_BUTTON_HEIGHT / 2);
 
     // --- Draw EXPLORE Button ---
     let exploreButtonText = "Explore";
@@ -378,17 +395,24 @@ function initGame() {
     // let vio1_s2, vio2_s3;
 
     // 2. Instantiate all Bug objects
-    v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1");
-    o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1");
-    g1_s1 = new Bug(100, 280, 'gray', pointsGray, "Gray Bug G1");
+    v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1", false, false, '', '',
+                  "A common, yet elusive green data-bug. Often found nesting in older code structures.");
+    o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1"); // No specific description/hint yet
+    g1_s1 = new Bug(100, 280, 'gray', pointsGray, "Gray Bug G1", false, false, '', '',
+                  "This gray bug seems to pulse with a faint, rhythmic energy.");
 
-    r1_s2 = new Bug(150, 200, 'red', pointsRed, "Red Bug R1");
+    r1_s2 = new Bug(150, 200, 'red', pointsRed, "Red Bug R1", false, false, '', '',
+                  "A fiery red bug, surprisingly warm to the digital touch. It looks sturdy enough to be a key of sorts.");
     v2_s2 = new Bug(150, 250, 'green', pointsGreen, "Green Bug V2");
-    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_ALPHA_NAME);
+    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_ALPHA_NAME, false, false, '', '',
+                    "A shimmering violet fragment. It feels incomplete, humming softly.",
+                    "Perhaps it could be combined with another similar fragment?");
 
     r2_s3 = new Bug(200, 200, 'red', pointsRed, "Red Bug R2");
     g2_s3 = new Bug(200, 250, 'gray', pointsGray, "Gray Bug G2");
-    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME);
+    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME, false, false, '', '',
+                    "Another piece of the violet puzzle. This one resonates with a slightly different frequency.",
+                    "It seems to yearn for its counterpart.");
 
     // Scene Setup
     const scene1 = new Scene('scene1_id', '#E0E0E0');
@@ -740,6 +764,51 @@ canvas.addEventListener('click', function(event) {
     if (mouseX >= INVENTORY_X && mouseX <= INVENTORY_X + INVENTORY_WIDTH &&
         mouseY >= INVENTORY_Y && mouseY <= INVENTORY_Y + INVENTORY_HEIGHT) {
 
+        // Check if Inspect Item button was clicked
+        if (mouseX >= INSPECT_BUTTON_X && mouseX <= INSPECT_BUTTON_X + ACTION_BUTTON_WIDTH &&
+            mouseY >= INSPECT_BUTTON_Y && mouseY <= INSPECT_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
+            if (currentInteractionMode === 'normal' && selectedInventoryItems.length === 1) {
+                const itemToInspect = selectedInventoryItems[0];
+                pendingClueToAdd = null; // Ensure we don't add a new item from a previous action
+
+                if (itemToInspect.isReadable && itemToInspect.messageContent) {
+                    parchmentTitle = itemToInspect.messageTitle || itemToInspect.name;
+                    parchmentContent = itemToInspect.messageContent;
+                    isParchmentVisible = true;
+                    latestLogMessage = `Inspecting: ${itemToInspect.name}`;
+                } else {
+                    // Item is not 'isReadable', so show its details
+                    let inspectionDetails = `Name: ${itemToInspect.name}\nPoints: ${itemToInspect.points}`;
+                    // Color is visually represented by swatch, so might not be needed here unless desired.
+                    // inspectionDetails += `\nColor: ${itemToInspect.color}`;
+
+                    if (itemToInspect.description && itemToInspect.description.trim() !== "") {
+                        inspectionDetails += `\n\n${itemToInspect.description}`;
+                    }
+                    if (itemToInspect.combineHint && itemToInspect.combineHint.trim() !== "") {
+                        inspectionDetails += `\n\nHint: ${itemToInspect.combineHint}`;
+                    }
+
+                    // Fallback generic detail if no specific description/hint
+                    if ((!itemToInspect.description || itemToInspect.description.trim() === "") &&
+                        (!itemToInspect.combineHint || itemToInspect.combineHint.trim() === "")) {
+                        inspectionDetails += "\n\nIt appears to be a standard data-bug or fragment.";
+                    }
+
+                    parchmentTitle = `Details: ${itemToInspect.name}`;
+                    parchmentContent = inspectionDetails;
+                    isParchmentVisible = true;
+                    latestLogMessage = `Inspecting: ${itemToInspect.name}`;
+                }
+            } else if (currentInteractionMode !== 'normal') {
+                latestLogMessage = "Cannot inspect items while in another mode.";
+            } else {
+                latestLogMessage = "Select a single item to inspect.";
+            }
+            console.log("Inspect Item button clicked.");
+            return; // Click handled
+        }
+
         // Check if Explore button was clicked
         if (mouseX >= EXPLORE_BUTTON_X && mouseX <= EXPLORE_BUTTON_X + ACTION_BUTTON_WIDTH &&
             mouseY >= EXPLORE_BUTTON_Y && mouseY <= EXPLORE_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
@@ -750,8 +819,7 @@ canvas.addEventListener('click', function(event) {
                 currentInteractionMode = 'exploring';
                 latestLogMessage = "Explore mode: Click on an object or area in the scene.";
             }
-            // If in 'usingItem' mode, clicking Explore does nothing or could show a message "Finish using item first"
-            // For now, it will do nothing if not 'normal' or 'exploring'
+            // If in 'usingItem' mode, clicking Explore does nothing
             console.log("Explore button clicked. Mode:", currentInteractionMode);
             return; // Click handled
         }
