@@ -29,6 +29,11 @@ const COMBINE_BUTTON_X = INVENTORY_X + COMBINE_BUTTON_MARGIN;
 const COMBINE_BUTTON_Y = INVENTORY_HEIGHT - COMBINE_BUTTON_HEIGHT - COMBINE_BUTTON_MARGIN;
 const COMBINE_BUTTON_WIDTH = INVENTORY_WIDTH - 2 * COMBINE_BUTTON_MARGIN;
 
+// Inventory Item Layout Constants (moved to global scope)
+const INV_ITEM_PADDING = 5; // Renamed from itemPadding to avoid potential future global conflicts
+const INV_LINE_HEIGHT = 18; // Renamed from lineHeight
+const INV_ITEM_START_Y = INVENTORY_Y + 45; // Calculated once, previously invItemStartY or inventoryItemY (partially)
+
 
 function gameLoop(timestamp) {
     if (lastTime === undefined || lastTime === 0) { // Handle first frame initialization or reset robustly
@@ -97,11 +102,8 @@ function drawUI(ctx) {
     ctx.font = '14px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    // Adjust starting Y for items to make space for Combine button at the bottom
-    let inventoryItemY = INVENTORY_Y + 45;
-    const availableHeightForItems = COMBINE_BUTTON_Y - (INVENTORY_Y + 45) - COMBINE_BUTTON_MARGIN;
-    const itemPadding = 5; // Padding around each item text/swatch
-    const lineHeight = 18; // Approx height for a line of 14px text
+
+    let currentItemY = INV_ITEM_START_Y; // Use global constant for starting Y
 
     // Log selectedInventoryItems before drawing items to check its state for highlighting
     console.log("[drawUI] selectedInventoryItems before item loop:", JSON.stringify(selectedInventoryItems.map(item => item.name)));
@@ -109,13 +111,14 @@ function drawUI(ctx) {
     foundBugsInventory.forEach((bug, index) => {
         // Basic check to prevent drawing too many items if inventory is very full
         // A more robust solution would involve a scrollable inventory
-        if (inventoryItemY + lineHeight + itemPadding > COMBINE_BUTTON_Y - COMBINE_BUTTON_MARGIN) {
+        // Use global constants INV_LINE_HEIGHT and INV_ITEM_PADDING
+        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > COMBINE_BUTTON_Y - COMBINE_BUTTON_MARGIN) {
             return;
         }
-        const itemAreaX = INVENTORY_X + itemPadding / 2; // Slight inset for highlight
-        const itemAreaY = inventoryItemY - (itemPadding / 2);
-        const itemAreaWidth = INVENTORY_WIDTH - (itemPadding); // Adjust width for inset
-        const itemAreaHeight = lineHeight + itemPadding;
+        const itemAreaX = INVENTORY_X + INV_ITEM_PADDING / 2;
+        const itemAreaY = currentItemY - (INV_ITEM_PADDING / 2);
+        const itemAreaWidth = INVENTORY_WIDTH - (INV_ITEM_PADDING);
+        const itemAreaHeight = INV_LINE_HEIGHT + INV_ITEM_PADDING;
 
         // Check if the current bug is in the selectedInventoryItems array
         if (selectedInventoryItems.includes(bug)) {
@@ -125,14 +128,14 @@ function drawUI(ctx) {
 
         // Simple color swatch next to the text
         ctx.fillStyle = bug.color;
-        ctx.fillRect(INVENTORY_X + itemPadding + 5, inventoryItemY + (lineHeight / 2) - 5, 10, 10);
+        ctx.fillRect(INVENTORY_X + INV_ITEM_PADDING + 5, currentItemY + (INV_LINE_HEIGHT / 2) - 5, 10, 10);
 
         // Reset to a standard text color for bug details
         ctx.fillStyle = '#111111';
         let bugText = `${index + 1}. ${bug.name} (${bug.points} pts)`;
-        ctx.fillText(bugText, INVENTORY_X + itemPadding + 20, inventoryItemY);
+        ctx.fillText(bugText, INVENTORY_X + INV_ITEM_PADDING + 20, currentItemY);
 
-        inventoryItemY += lineHeight + itemPadding;
+        currentItemY += INV_LINE_HEIGHT + INV_ITEM_PADDING;
     });
 
     // --- Draw Combine Button ---
@@ -497,10 +500,7 @@ canvas.addEventListener('click', function(event) {
     const mouseY = event.clientY - rect.top;
 
     // --- Check for Inventory Click ---
-    // Constants for inventory layout (must match drawUI)
-    const invItemStartY = INVENTORY_Y + 45; // Starting Y for items after title
-    const invItemPadding = 5;
-    const invLineHeight = 18;
+    // Note: INV_ITEM_START_Y, INV_ITEM_PADDING, and INV_LINE_HEIGHT are now global constants
 
     if (mouseX >= INVENTORY_X && mouseX <= INVENTORY_X + INVENTORY_WIDTH &&
         mouseY >= INVENTORY_Y && mouseY <= INVENTORY_Y + INVENTORY_HEIGHT) {
@@ -516,12 +516,12 @@ canvas.addEventListener('click', function(event) {
         // Click is within the inventory panel bounds (but not the combine button)
         let clickedInventoryItemIndex = -1;
         for (let i = 0; i < foundBugsInventory.length; i++) {
-            // Adjusted itemTopY to match drawUI's itemAreaY for highlight consistency
-            const itemTopY = invItemStartY + (i * (invLineHeight + invItemPadding)) - (itemPadding / 2);
-            const itemBottomY = itemTopY + invLineHeight + invItemPadding;
+            // Use global constants for item layout calculations
+            const itemTopY = INV_ITEM_START_Y + (i * (INV_LINE_HEIGHT + INV_ITEM_PADDING)) - (INV_ITEM_PADDING / 2);
+            const itemBottomY = itemTopY + INV_LINE_HEIGHT + INV_ITEM_PADDING;
 
-            const itemClickableXStart = INVENTORY_X + invItemPadding / 2;
-            const itemClickableXEnd = INVENTORY_X + INVENTORY_WIDTH - invItemPadding / 2;
+            const itemClickableXStart = INVENTORY_X + INV_ITEM_PADDING / 2;
+            const itemClickableXEnd = INVENTORY_X + INVENTORY_WIDTH - INV_ITEM_PADDING / 2;
 
             // Ensure the click is not overlapping where the combine button might be,
             // even if items list is short. This check is mostly for items ABOVE the button.
