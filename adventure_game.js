@@ -20,6 +20,12 @@ let latestLogMessage = "Welcome to Detective Polyspace!"; // For displaying game
 let currentInteractionMode = 'normal'; // Possible values: 'normal', 'usingItem', 'exploring'
 let cursorCurrentlyOverHotspot = false; // Tracks if the cursor is currently set to a hotspot-specific style
 
+// Parchment Modal State Variables
+let isParchmentVisible = false;
+let parchmentTitle = "";
+let parchmentContent = "";
+let pendingClueToAdd = null; // Stores a Bug object to be added to inventory after parchment dismissal
+
 const GENERIC_EXPLORE_MESSAGES = [
     "The digital hum of the datasphere is strong here.",
     "Loose data packets drift by like digital tumbleweeds.",
@@ -260,7 +266,75 @@ function drawUI(ctx) {
         ctx.font = '24px Arial';
         ctx.fillText(`Final Score: ${score}`, centerX, canvas.height / 2 + 20);
     }
+
+    // --- Draw Parchment Modal (If Visible) ---
+    // This should be drawn on top of most other UI, but potentially below a game menu if one existed.
+    // The parchment modal itself handles dimming the full screen.
+    if (isParchmentVisible) {
+        drawParchmentModal(ctx);
+    }
 }
+
+function drawParchmentModal(ctx) {
+    // if (!isParchmentVisible) return; // This check is now done by the caller in drawUI for clarity
+
+    // Modal dimensions and positioning (centered in game view)
+    const gameViewWidth = canvas.width - INVENTORY_WIDTH;
+    const modalWidth = gameViewWidth * 0.7;
+    const modalHeight = canvas.height * 0.6;
+    const modalX = (gameViewWidth - modalWidth) / 2;
+    const modalY = (canvas.height - modalHeight) / 2;
+
+    // Semi-transparent overlay for the background (optional, to dim the game)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height); // Cover full canvas
+
+    // Parchment background
+    ctx.fillStyle = '#F5F5DC'; // Beige parchment color
+    ctx.fillRect(modalX, modalY, modalWidth, modalHeight);
+    ctx.strokeStyle = '#8B4513'; // SaddleBrown border
+    ctx.lineWidth = 3;
+    ctx.strokeRect(modalX, modalY, modalWidth, modalHeight);
+
+    // Title
+    ctx.fillStyle = '#5D4037'; // Dark brown text
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(parchmentTitle, modalX + modalWidth / 2, modalY + 20);
+
+    // Content (with basic text wrapping)
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    const contentX = modalX + 20;
+    const contentYStart = modalY + 60;
+    const contentWidth = modalWidth - 40;
+    const lineHeight = 20;
+    let currentContentY = contentYStart;
+
+    const words = parchmentContent.split(' ');
+    let line = '';
+
+    for (let n = 0; n < words.length; n++) {
+        let testLine = line + words[n] + ' ';
+        let metrics = ctx.measureText(testLine);
+        let testWidth = metrics.width;
+        if (testWidth > contentWidth && n > 0) {
+            ctx.fillText(line, contentX, currentContentY);
+            line = words[n] + ' ';
+            currentContentY += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    ctx.fillText(line, contentX, currentContentY); // Draw the last line
+
+    // "Click to close" hint
+    ctx.font = 'italic 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("(Click anywhere to close)", modalX + modalWidth / 2, modalY + modalHeight - 20);
+}
+
 
 function updateWinnableItemsCount() {
     winnableItemsInInventoryCount = 0;
@@ -424,23 +498,24 @@ function initGame() {
         "Ancient Cache", // name
         SHINING_VIOLET_GEM_NAME, // requiredItemName
         function() { // onUseItemSuccessAction
-            latestLogMessage = "The Shining Violet Gem fits perfectly! The strongbox clicks open... it reveals a message: 'To be continued...'";
-            // Consider disabling the hotspot after successful use to prevent re-triggering
-            // 'this' inside this callback refers to the hotspot instance IF the action is bound correctly
-            // or if called via an arrow function that captures 'this' from where Hotspot is defined.
-            // However, Hotspot class does not automatically bind 'this' for these callbacks.
-            // So, to disable, we'd need a reference to ancientCache itself.
-            // For now, let's rely on the player not repeatedly using it.
-            // A robust way: ancientCache.isEnabled = false; (if ancientCache is accessible here)
-            // This specific instance 'ancientCache' is accessible here in initGame.
-            ancientCache.isEnabled = false;
+            parchmentTitle = "Ancient Cache Opened"; // Title for the parchment
+            parchmentContent = "The Shining Violet Gem fits perfectly! The strongbox clicks open... it reveals a message: 'To be continued...'";
+            isParchmentVisible = true;
+
+            // Define the clue item to be added to inventory after parchment is dismissed
+            // Name, color, points, actual name, found status, isReadable, messageTitle, messageContent
+            pendingClueToAdd = new Bug(0, 0, '#E0D6B3', 0, 'Ancient Cache Note', true, true, parchmentTitle, parchmentContent);
+
+            ancientCache.isEnabled = false; // Disable hotspot after successful use
+            latestLogMessage = "The Ancient Cache opens!"; // Brief log message, parchment will show details
         },
         function(selectedItem, failureReason) { // onUseItemFailureAction
             if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
                  latestLogMessage = "Select the Shining Violet Gem, click 'Use Item', then click the cache.";
             } else if (selectedItem) {
                 latestLogMessage = `The ${selectedItem.name} doesn't seem to fit the cache's indentation.`;
-            } else { // This case is for when 'Use' mode wasn't active or item was wrong (handled by Hotspot.trigger)
+            } else {
+                // This specific 'else' might be less reached if Hotspot.trigger handles "not in use mode" first
                 latestLogMessage = "The cache has a peculiar gem-shaped indentation. It might require a specific item used on it.";
             }
         },
@@ -636,6 +711,23 @@ function goToScene(targetSceneId, entryPointName) {
 
 // Canvas click event listener
 canvas.addEventListener('click', function(event) {
+    if (isParchmentVisible) {
+        isParchmentVisible = false;
+        if (pendingClueToAdd) {
+            // Avoid adding duplicate notes if something unexpected happens
+            if (!foundBugsInventory.some(item => item.name === pendingClueToAdd.name)) {
+                foundBugsInventory.push(pendingClueToAdd);
+                latestLogMessage = `Added '${pendingClueToAdd.name}' to inventory.`;
+                // updateWinnableItemsCount(); // Only if notes contribute to win condition
+            }
+            pendingClueToAdd = null; // Clear it regardless
+        }
+        // Consider redrawing immediately if input was truly blocked:
+        // if (currentScene) currentScene.draw(ctx);
+        // drawUI(ctx);
+        return; // Consume the click, do nothing else.
+    }
+
     if (!currentScene || !detective) return;
 
     const rect = canvas.getBoundingClientRect();
