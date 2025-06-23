@@ -12,7 +12,7 @@ const winnableItemNames = []; // Names of items that count towards winning
 let totalWinnableItems = 0;   // Length of winnableItemNames
 let gameWon = false;
 let foundBugsInventory = [];
-let selectedInventoryItem = null; // For storing the currently selected bug from inventory
+let selectedInventoryItems = []; // Changed from selectedInventoryItem to support multi-select
 const itemCombinations = []; // MOVED TO GLOBAL SCOPE
 let lastTime = 0; // Declare lastTime globally
 
@@ -21,6 +21,13 @@ const INVENTORY_WIDTH = 200;
 const INVENTORY_X = canvas.width - INVENTORY_WIDTH;
 const INVENTORY_Y = 0;
 const INVENTORY_HEIGHT = canvas.height;
+
+// Combine Button parameters
+const COMBINE_BUTTON_HEIGHT = 40;
+const COMBINE_BUTTON_MARGIN = 10;
+const COMBINE_BUTTON_X = INVENTORY_X + COMBINE_BUTTON_MARGIN;
+const COMBINE_BUTTON_Y = INVENTORY_HEIGHT - COMBINE_BUTTON_HEIGHT - COMBINE_BUTTON_MARGIN;
+const COMBINE_BUTTON_WIDTH = INVENTORY_WIDTH - 2 * COMBINE_BUTTON_MARGIN;
 
 
 function gameLoop(timestamp) {
@@ -90,17 +97,25 @@ function drawUI(ctx) {
     ctx.font = '14px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    let inventoryItemY = INVENTORY_Y + 45; // Starting Y for items
+    // Adjust starting Y for items to make space for Combine button at the bottom
+    let inventoryItemY = INVENTORY_Y + 45;
+    const availableHeightForItems = COMBINE_BUTTON_Y - (INVENTORY_Y + 45) - COMBINE_BUTTON_MARGIN;
     const itemPadding = 5; // Padding around each item text/swatch
     const lineHeight = 18; // Approx height for a line of 14px text
 
     foundBugsInventory.forEach((bug, index) => {
+        // Basic check to prevent drawing too many items if inventory is very full
+        // A more robust solution would involve a scrollable inventory
+        if (inventoryItemY + lineHeight + itemPadding > COMBINE_BUTTON_Y - COMBINE_BUTTON_MARGIN) {
+            return;
+        }
         const itemAreaX = INVENTORY_X + itemPadding / 2; // Slight inset for highlight
         const itemAreaY = inventoryItemY - (itemPadding / 2);
         const itemAreaWidth = INVENTORY_WIDTH - (itemPadding); // Adjust width for inset
         const itemAreaHeight = lineHeight + itemPadding;
 
-        if (bug === selectedInventoryItem) {
+        // Check if the current bug is in the selectedInventoryItems array
+        if (selectedInventoryItems.includes(bug)) {
             ctx.fillStyle = 'rgba(255, 255, 0, 0.3)'; // Yellow, semi-transparent highlight
             ctx.fillRect(itemAreaX, itemAreaY, itemAreaWidth, itemAreaHeight);
         }
@@ -116,6 +131,33 @@ function drawUI(ctx) {
 
         inventoryItemY += lineHeight + itemPadding;
     });
+
+    // --- Draw Combine Button ---
+    console.log("Attempting to draw Combine Button. Canvas:", canvas.width, "x", canvas.height);
+    console.log("Inventory Panel: X:", INVENTORY_X, "Y:", INVENTORY_Y, "W:", INVENTORY_WIDTH, "H:", INVENTORY_HEIGHT);
+    console.log("Combine Button Params: X:", COMBINE_BUTTON_X, "Y:", COMBINE_BUTTON_Y, "W:", COMBINE_BUTTON_WIDTH, "H:", COMBINE_BUTTON_HEIGHT, "Margin:", COMBINE_BUTTON_MARGIN);
+    console.log("Selected items for button color:", selectedInventoryItems.length);
+
+    // Button background
+    ctx.fillStyle = '#4CAF50'; // Green color for the button
+    if (selectedInventoryItems.length === 2) {
+        ctx.fillStyle = '#388E3C'; // Darker green if exactly 2 items are selected
+    } else if (selectedInventoryItems.length !== 0 && selectedInventoryItems.length !== 2) {
+        ctx.fillStyle = '#FFC107'; // Amber/Orange if items selected but not 2 (to indicate invalid number for combine)
+    }
+    ctx.fillRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
+
+    // Button border
+    ctx.strokeStyle = '#2E7D32'; // Darker green border
+    ctx.lineWidth = 2;
+    ctx.strokeRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
+
+    // Button text
+    ctx.fillStyle = '#FFFFFF'; // White text
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Combine', COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH / 2, COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT / 2);
 
 
     // --- Existing Win Condition Message (Overlay) ---
@@ -156,7 +198,7 @@ function initGame() {
     winnableItemsInInventoryCount = 0;
     gameWon = false;
     foundBugsInventory = [];
-    selectedInventoryItem = null;
+    selectedInventoryItems = []; // Reset to empty array
     for (const key in gameScenes) { delete gameScenes[key]; }
     itemCombinations.length = 0;
     winnableItemNames.length = 0;
@@ -313,17 +355,30 @@ function initGame() {
 }
 
 function attemptCombination(item1, item2) {
-    console.log("[DEBUG] Attempting combination...");
-    if (!item1 || !item2) {
-        console.error("[DEBUG] ERROR: attemptCombination called with null item(s).", "Item1:", item1, "Item2:", item2);
-        selectedInventoryItem = null;
+    // This function is now primarily called by the Combine button click.
+    // It expects selectedInventoryItems to be populated.
+    console.log("[DEBUG] Attempting combination with selected items:", selectedInventoryItems);
+
+    if (selectedInventoryItems.length !== 2) {
+        console.log("[DEBUG] Combination failed: Exactly 2 items must be selected.");
+        // Do not clear selection here, user might want to adjust selection.
         return false;
     }
-    const item1Name = item1.name || "UNKNOWN_ITEM1_NAME";
-    const item2Name = item2.name || "UNKNOWN_ITEM2_NAME";
 
-    console.log(`[DEBUG] Item 1: '${item1Name}' (Type: ${typeof item1Name})`);
-    console.log(`[DEBUG] Item 2: '${item2Name}' (Type: ${typeof item2Name})`);
+    const item1 = selectedInventoryItems[0];
+    const item2 = selectedInventoryItems[1];
+
+    // Ensure item1 and item2 are valid objects with names
+    if (!item1 || !item1.name || !item2 || !item2.name) {
+        console.error("[DEBUG] ERROR: One or both selected items are invalid or missing a name property.");
+        selectedInventoryItems = []; // Clear selection due to invalid item data
+        return false;
+    }
+
+    const item1Name = item1.name;
+    const item2Name = item2.name;
+
+    console.log(`[DEBUG] Trying to combine: '${item1Name}' and '${item2Name}'`);
 
     const serializableRecipes = itemCombinations.map(r => ({
         item1Name: r.item1Name,
@@ -335,29 +390,31 @@ function attemptCombination(item1, item2) {
     for (const recipe of itemCombinations) {
         const recipeItem1Name = recipe.item1Name || "UNKNOWN_RECIPE_ITEM1_NAME";
         const recipeItem2Name = recipe.item2Name || "UNKNOWN_RECIPE_ITEM2_NAME";
-        console.log(`[DEBUG] Checking recipe: Needs ('${recipeItem1Name}', '${recipeItem2Name}'). Have ('${item1Name}', '${item2Name}')`);
 
         const match1 = (recipeItem1Name === item1Name && recipeItem2Name === item2Name);
         const match2 = (recipeItem1Name === item2Name && recipeItem2Name === item1Name);
 
-        console.log(`[DEBUG] Match forward (A+B): ${match1}`);
-        console.log(`[DEBUG] Match reverse (B+A): ${match2}`);
-
         if (match1 || match2) {
             console.log("[DEBUG] SUCCESS: Recipe matched!");
 
+            // Remove source items from inventory
             foundBugsInventory = foundBugsInventory.filter(bug => bug !== item1 && bug !== item2);
-            score += recipe.resultItem.points;
+
+            // Add result item to inventory
+            score += recipe.resultItem.points; // Add points from the new item
             const newItem = new Bug(0, 0, recipe.resultItem.color, recipe.resultItem.points, recipe.resultItem.name);
-            newItem.found = true;
+            newItem.found = true; // Mark as found since it's created
             foundBugsInventory.push(newItem);
-            updateWinnableItemsCount();
-            selectedInventoryItem = null;
+
+            updateWinnableItemsCount(); // Update counts for win condition etc.
+            selectedInventoryItems = []; // Clear selection after successful combination
+            console.log(`[DEBUG] Items combined successfully into: ${newItem.name}`);
             return true;
         }
     }
-    console.log("[DEBUG] FAILURE: No matching recipe found for the given items.");
-    selectedInventoryItem = null;
+
+    console.log("[DEBUG] FAILURE: No matching recipe found for the selected items.");
+    // Do not clear selection here, user might want to try combining with something else or deselect manually.
     return false;
 }
 
@@ -445,45 +502,50 @@ canvas.addEventListener('click', function(event) {
     if (mouseX >= INVENTORY_X && mouseX <= INVENTORY_X + INVENTORY_WIDTH &&
         mouseY >= INVENTORY_Y && mouseY <= INVENTORY_Y + INVENTORY_HEIGHT) {
 
-        // Click is within the inventory panel bounds
+        // Check if Combine button was clicked
+        if (mouseX >= COMBINE_BUTTON_X && mouseX <= COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH &&
+            mouseY >= COMBINE_BUTTON_Y && mouseY <= COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT) {
+            console.log("Combine button clicked");
+            attemptCombination(); // Call attemptCombination, which now uses selectedInventoryItems
+            return; // Click handled by Combine button
+        }
+
+        // Click is within the inventory panel bounds (but not the combine button)
         let clickedInventoryItemIndex = -1;
         for (let i = 0; i < foundBugsInventory.length; i++) {
             // Adjusted itemTopY to match drawUI's itemAreaY for highlight consistency
-            const itemTopY = invItemStartY + (i * (invLineHeight + invItemPadding)) - (invItemPadding / 2);
+            const itemTopY = invItemStartY + (i * (invLineHeight + invItemPadding)) - (itemPadding / 2);
             const itemBottomY = itemTopY + invLineHeight + invItemPadding;
 
             const itemClickableXStart = INVENTORY_X + invItemPadding / 2;
             const itemClickableXEnd = INVENTORY_X + INVENTORY_WIDTH - invItemPadding / 2;
 
-            if (mouseY >= itemTopY && mouseY <= itemBottomY && mouseX >= itemClickableXStart && mouseX <= itemClickableXEnd) {
-                clickedInventoryItemIndex = i;
-                break;
+            // Ensure the click is not overlapping where the combine button might be,
+            // even if items list is short. This check is mostly for items ABOVE the button.
+            if (mouseY < COMBINE_BUTTON_Y - COMBINE_BUTTON_MARGIN) { // Ensure click is above combine button area
+                if (mouseY >= itemTopY && mouseY <= itemBottomY && mouseX >= itemClickableXStart && mouseX <= itemClickableXEnd) {
+                    clickedInventoryItemIndex = i;
+                    break;
+                }
             }
         }
 
         if (clickedInventoryItemIndex !== -1) {
             const clickedBugInInventory = foundBugsInventory[clickedInventoryItemIndex];
+            const itemIndexInSelected = selectedInventoryItems.indexOf(clickedBugInInventory);
 
-            if (selectedInventoryItem === null) {
-                // No item previously selected, so select this one
-                selectedInventoryItem = clickedBugInInventory;
-                console.log("Selected item:", selectedInventoryItem.name);
+            if (itemIndexInSelected > -1) {
+                selectedInventoryItems.splice(itemIndexInSelected, 1);
+                console.log("Deselected item:", clickedBugInInventory.name);
             } else {
-                // An item was already selected, try to combine
-                if (selectedInventoryItem === clickedBugInInventory) {
-                    // Clicking the already selected item deselects it
-                    selectedInventoryItem = null;
-                    console.log("Deselected item:", clickedBugInInventory.name);
-                } else {
-                    // Attempt to combine selectedInventoryItem with clickedBugInInventory
-                    attemptCombination(selectedInventoryItem, clickedBugInInventory);
-                    // selectedInventoryItem is reset within attemptCombination
-                }
+                selectedInventoryItems.push(clickedBugInInventory);
+                console.log("Selected item:", clickedBugInInventory.name);
             }
-            return; // Click handled by inventory
+            return; // Click handled by inventory item selection
         }
-        // If click was in inventory panel but not on an item, also prevent scene interaction
-        console.log("Clicked inside inventory panel, but not on an item.");
+
+        // Click was in inventory panel but not on an item or the combine button
+        console.log("Clicked inside inventory panel (not on item/button).");
         return;
     }
 
