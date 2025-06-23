@@ -20,6 +20,13 @@ let latestLogMessage = "Welcome to Detective Polyspace!"; // For displaying game
 let currentInteractionMode = 'normal'; // Possible values: 'normal', 'usingItem', 'exploring'
 let cursorCurrentlyOverHotspot = false; // Tracks if the cursor is currently set to a hotspot-specific style
 
+// Double-click tracking variables
+let lastSceneClickTime = 0;
+let lastSceneClickX = -1;
+let lastSceneClickY = -1;
+const DOUBLE_CLICK_THRESHOLD = 400; // milliseconds
+const CLICK_AREA_TOLERANCE = 10;  // pixels
+
 // Parchment Modal State Variables
 let isParchmentVisible = false;
 let parchmentTitle = "";
@@ -950,16 +957,31 @@ canvas.addEventListener('click', function(event) {
         currentInteractionMode = 'normal'; // Exit 'exploring' mode after one click
 
     } else { // currentInteractionMode === 'normal'
+        const clickTime = performance.now();
+        const timeSinceLastClick = clickTime - lastSceneClickTime;
+        let isBoosted = false;
+
+        if (timeSinceLastClick < DOUBLE_CLICK_THRESHOLD &&
+            Math.abs(mouseX - lastSceneClickX) < CLICK_AREA_TOLERANCE &&
+            Math.abs(mouseY - lastSceneClickY) < CLICK_AREA_TOLERANCE) {
+            isBoosted = true;
+            lastSceneClickTime = 0; // Reset to prevent third click being double
+        } else {
+            lastSceneClickTime = clickTime;
+            lastSceneClickX = mouseX;
+            lastSceneClickY = mouseY;
+        }
+
         if (clickedHotspot) {
             const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
             const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
-            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
-            latestLogMessage = `Moving to interact with ${clickedHotspot.name}...`;
-            console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
-        } else {
-            detective.moveTo(mouseX, mouseY, null);
-            latestLogMessage = `Moving to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
-            console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot, null, isBoosted);
+            latestLogMessage = `${isBoosted ? "Quickly moving" : "Moving"} to interact with ${clickedHotspot.name}...`;
+            console.log(`${isBoosted ? "Quickly moving" : "Moving"} to interact with hotspot: ${clickedHotspot.name}`);
+        } else { // Clicked on empty ground
+            detective.moveTo(mouseX, mouseY, null, null, isBoosted);
+            latestLogMessage = `${isBoosted ? "Quickly moving" : "Moving"} to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
+            console.log(`${isBoosted ? "Quickly moving" : "Moving"} to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
         }
     }
 });
