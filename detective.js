@@ -13,9 +13,10 @@ class Detective {
         this.isMoving = false;
         this.movementSpeed = 150;
         this.interactionTargetHotspot = null;
+        this.latchedInteractionMode = null; // Initialize property here
     }
 
-    moveTo(x, y, targetHotspot = null) {
+    moveTo(x, y, targetHotspot = null, interactionModeForThisMove = null) {
         // Centering logic for target
         let intendedTargetX = x - this.width / 2;
         let intendedTargetY = y - this.height / 2;
@@ -42,7 +43,13 @@ class Detective {
         this.targetX = intendedTargetX;
         this.targetY = intendedTargetY;
         this.isMoving = true;
-        this.interactionTargetHotspot = targetHotspot; // Store the hotspot
+        this.interactionTargetHotspot = targetHotspot;
+
+        if (targetHotspot) {
+            this.latchedInteractionMode = interactionModeForThisMove;
+        } else {
+            this.latchedInteractionMode = null; // Clear latched mode if just moving to a point
+        }
     }
 
     update(deltaTime) {
@@ -77,14 +84,18 @@ class Detective {
                     // This part is complex as trigger is called here.
                     // The onArrivalCallback is for the detective's arrival itself,
                     // but we can reuse it as the setMessageCallback for the hotspot.
-                    const currentMode = typeof this.getInteractionModeCallback === 'function' ? this.getInteractionModeCallback() : 'normal';
+
+                    // Prioritize latched mode for this specific interaction, fallback to global current mode
+                    const modeForHotspotTrigger = this.latchedInteractionMode ||
+                                                 (typeof this.getInteractionModeCallback === 'function' ?
+                                                  this.getInteractionModeCallback() : 'normal');
+
                     if (typeof this.onArrivalCallback === 'function') {
-                        this.interactionTargetHotspot.trigger(this.onArrivalCallback, currentMode);
+                        this.interactionTargetHotspot.trigger(this.onArrivalCallback, modeForHotspotTrigger);
                     } else {
-                        // If detective has no onArrivalCallback, hotspot's default setMessageCallback will be used.
-                        // Still pass the mode.
-                        this.interactionTargetHotspot.trigger(undefined, currentMode);
+                        this.interactionTargetHotspot.trigger(undefined, modeForHotspotTrigger);
                     }
+                    this.latchedInteractionMode = null; // Clear the latched mode after the trigger
                 } else {
                     arrivalMessage = `Arrived at ${this.interactionTargetHotspot.name}, but it's no longer active.`;
                     if (typeof this.onArrivalCallback === 'function') {

@@ -754,16 +754,31 @@ canvas.addEventListener('click', function(event) {
             // Attempt to use the selected item on this hotspot
             latestLogMessage = `Using ${selectedInventoryItems[0].name} on ${clickedHotspot.name}...`;
             // Detective moves to hotspot, and upon arrival, Hotspot.trigger() is called.
-            // Hotspot.trigger() already uses selectedInventoryItems.
+            // Hotspot.trigger() will use the mode passed by detective.moveTo.
             const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
             const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
-            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot, 'usingItem'); // Pass 'usingItem' mode
         } else {
             // Clicked on empty ground while in 'usingItem' mode
             latestLogMessage = "Use cancelled. Clicked on empty ground.";
+            currentInteractionMode = 'normal'; // Reset global mode only if not interacting with hotspot
         }
-        currentInteractionMode = 'normal'; // Exit 'usingItem' mode after any scene click
-        // Note: selectedInventoryItems is NOT cleared here. It's cleared on successful use/combination or manually by user.
+        // If a hotspot was clicked, global currentInteractionMode is reset AFTER the interaction attempt
+        // by the logic within Detective.update() implicitly (as latched mode is used) or explicitly if needed.
+        // For now, resetting it here for clicks on empty ground is correct.
+        // If hotspot clicked, it remains 'usingItem' until detective acts & clears its latched mode.
+        // The global mode should be reset after the action. Let's adjust this:
+        // Global mode is reset to 'normal' if empty ground is clicked.
+        // If hotspot is clicked, the 'usingItem' mode is latched by detective.moveTo,
+        // and global mode can be reset.
+        if (!clickedHotspot) { // If we clicked empty ground
+             currentInteractionMode = 'normal';
+        } else {
+            // If we clicked a hotspot, the global mode can also be reset here,
+            // as the 'usingItem' intent is now latched with the detective's move.
+            currentInteractionMode = 'normal';
+        }
+
 
     } else if (currentInteractionMode === 'exploring') {
         if (clickedHotspot) {
