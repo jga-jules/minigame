@@ -29,31 +29,50 @@ class Hotspot {
                mouseY >= this.y && mouseY <= this.y + this.height;
     }
 
-    trigger() { // No selectedItem parameter, uses global selectedInventoryItem
+    trigger() {
         if (!this.isEnabled) return;
 
-        // Assumes selectedInventoryItem is a global variable from adventure_game.js
+        // Assumes selectedInventoryItems is a global array from adventure_game.js
         if (this.requiredItemName) {
-            if (selectedInventoryItem && selectedInventoryItem.name === this.requiredItemName) {
+            let itemToUse = null;
+            if (selectedInventoryItems && selectedInventoryItems.length === 1) {
+                itemToUse = selectedInventoryItems[0];
+            } else if (selectedInventoryItems && selectedInventoryItems.length > 1) {
+                console.log(`Hotspot ${this.name} requires a single item, but multiple are selected. Please select only one item to use.`);
+                if (typeof this.onUseItemFailureAction === 'function') {
+                    // Pass null or a specific message indicating too many items selected
+                    this.onUseItemFailureAction(null, "Too many items selected");
+                }
+                return;
+            }
+
+            if (itemToUse && itemToUse.name === this.requiredItemName) {
                 if (typeof this.onUseItemSuccessAction === 'function') {
                     this.onUseItemSuccessAction();
+                    // Potentially clear selectedInventoryItems or remove the used item after successful use
+                    // For now, let adventure_game.js handle item removal if needed via the success action.
+                    // selectedInventoryItems = []; // Example: clear selection after use
                     return;
                 } else {
-                    console.log(`Hotspot ${this.name} was used with correct item ${selectedInventoryItem.name}, but no success action defined.`);
+                    console.log(`Hotspot ${this.name} was used with correct item ${itemToUse.name}, but no success action defined.`);
                 }
             } else {
+                // This block handles cases where:
+                // 1. No item is selected (itemToUse is null because selectedInventoryItems is empty)
+                // 2. One item is selected, but it's the wrong item.
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    this.onUseItemFailureAction(selectedInventoryItem);
+                    this.onUseItemFailureAction(itemToUse); // itemToUse will be null if nothing was selected
                 } else {
-                    if (selectedInventoryItem) {
-                         console.log(`Using ${selectedInventoryItem.name} on ${this.name} doesn't seem to work.`);
+                    if (itemToUse) {
+                        console.log(`Using ${itemToUse.name} on ${this.name} doesn't seem to work.`);
                     } else {
-                         console.log(`${this.name} might need a specific item.`);
+                        console.log(`${this.name} might need a specific item. Nothing selected or suitable.`);
                     }
                 }
                 return;
             }
         } else if (typeof this.onClickAction === 'function') {
+            // Hotspot does not require an item, just perform its click action
             this.onClickAction();
         } else {
             console.log(`Hotspot ${this.name} clicked, but has no defined action.`);
