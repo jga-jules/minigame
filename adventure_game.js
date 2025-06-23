@@ -103,6 +103,9 @@ function drawUI(ctx) {
     const itemPadding = 5; // Padding around each item text/swatch
     const lineHeight = 18; // Approx height for a line of 14px text
 
+    // Log selectedInventoryItems before drawing items to check its state for highlighting
+    console.log("[drawUI] selectedInventoryItems before item loop:", JSON.stringify(selectedInventoryItems.map(item => item.name)));
+
     foundBugsInventory.forEach((bug, index) => {
         // Basic check to prevent drawing too many items if inventory is very full
         // A more robust solution would involve a scrollable inventory
@@ -354,7 +357,7 @@ function initGame() {
     gameLoop();
 }
 
-function attemptCombination(item1, item2) {
+function attemptCombination() { // Removed item1, item2 from parameters
     // This function is now primarily called by the Combine button click.
     // It expects selectedInventoryItems to be populated.
     console.log("[DEBUG] Attempting combination with selected items:", selectedInventoryItems);
@@ -541,6 +544,8 @@ canvas.addEventListener('click', function(event) {
                 selectedInventoryItems.push(clickedBugInInventory);
                 console.log("Selected item:", clickedBugInInventory.name);
             }
+            // Log the state of selectedInventoryItems after modification
+            console.log("[Click Handler] selectedInventoryItems after update:", JSON.stringify(selectedInventoryItems.map(item => item.name)));
             return; // Click handled by inventory item selection
         }
 
