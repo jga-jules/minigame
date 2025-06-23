@@ -16,6 +16,21 @@ let selectedInventoryItems = []; // Changed from selectedInventoryItem to suppor
 const itemCombinations = []; // MOVED TO GLOBAL SCOPE
 let lastTime = 0; // Declare lastTime globally
 
+let latestLogMessage = "Welcome to Detective Polyspace!"; // For displaying game messages to the user
+let currentInteractionMode = 'normal'; // Possible values: 'normal', 'usingItem', 'exploring'
+let cursorCurrentlyOverHotspot = false; // Tracks if the cursor is currently set to a hotspot-specific style
+
+const GENERIC_EXPLORE_MESSAGES = [
+    "The digital hum of the datasphere is strong here.",
+    "Loose data packets drift by like digital tumbleweeds.",
+    "This area seems stable, for now.",
+    "You sense a faint anomaly nearby, or is it just your compiler acting up?",
+    "A lingering echo of forgotten code whispers in the silence.",
+    "It's quiet... too quiet?",
+    "The structure of this code is fascinatingly complex.",
+    "You find a commented-out block: /* TODO: Add more interesting things here */"
+];
+
 // Inventory area parameters
 const INVENTORY_WIDTH = 200;
 const INVENTORY_X = canvas.width - INVENTORY_WIDTH;
@@ -28,6 +43,39 @@ const COMBINE_BUTTON_MARGIN = 10;
 const COMBINE_BUTTON_X = INVENTORY_X + COMBINE_BUTTON_MARGIN;
 const COMBINE_BUTTON_Y = INVENTORY_HEIGHT - COMBINE_BUTTON_HEIGHT - COMBINE_BUTTON_MARGIN;
 const COMBINE_BUTTON_WIDTH = INVENTORY_WIDTH - 2 * COMBINE_BUTTON_MARGIN;
+
+// Log Area parameters
+const LOG_AREA_HEIGHT = 30; // Height of the log message bar
+const LOG_AREA_Y = canvas.height - LOG_AREA_HEIGHT; // Position it at the very bottom
+const LOG_AREA_X = 0; // Start from the left edge
+const LOG_AREA_WIDTH = canvas.width - INVENTORY_WIDTH; // Span game area, not inventory
+const LOG_TEXT_MARGIN = 5; // Padding for text inside the log area
+const LOG_FONT_SIZE = 14;
+
+// Action Button Layout (Explore, Use, Combine)
+const ACTION_BUTTON_HEIGHT = 30; // Height for Use and Explore buttons
+const ACTION_BUTTON_MARGIN = 8;  // Vertical margin between action buttons
+// Horizontal margin for all action buttons to align them and give padding from inventory edge
+const ACTION_BUTTON_SIDE_MARGIN = COMBINE_BUTTON_MARGIN; // Use same as Combine button's original side margin
+const ACTION_BUTTON_WIDTH = INVENTORY_WIDTH - 2 * ACTION_BUTTON_SIDE_MARGIN;
+
+// COMBINE button is the lowest of the three main action buttons
+// Its X, Y, Width, Height are already defined:
+// const COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT
+
+// USE button sits above COMBINE
+const USE_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
+const USE_BUTTON_Y = COMBINE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
+
+// EXPLORE button sits above USE
+const EXPLORE_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
+const EXPLORE_BUTTON_Y = USE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
+
+
+// Inventory Item Layout Constants (moved to global scope)
+const INV_ITEM_PADDING = 5; // Renamed from itemPadding to avoid potential future global conflicts
+const INV_LINE_HEIGHT = 18; // Renamed from lineHeight
+const INV_ITEM_START_Y = INVENTORY_Y + 45; // Calculated once, previously invItemStartY or inventoryItemY (partially)
 
 
 function gameLoop(timestamp) {
@@ -97,11 +145,8 @@ function drawUI(ctx) {
     ctx.font = '14px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    // Adjust starting Y for items to make space for Combine button at the bottom
-    let inventoryItemY = INVENTORY_Y + 45;
-    const availableHeightForItems = COMBINE_BUTTON_Y - (INVENTORY_Y + 45) - COMBINE_BUTTON_MARGIN;
-    const itemPadding = 5; // Padding around each item text/swatch
-    const lineHeight = 18; // Approx height for a line of 14px text
+
+    let currentItemY = INV_ITEM_START_Y; // Use global constant for starting Y
 
     // Log selectedInventoryItems before drawing items to check its state for highlighting
     console.log("[drawUI] selectedInventoryItems before item loop:", JSON.stringify(selectedInventoryItems.map(item => item.name)));
@@ -109,13 +154,14 @@ function drawUI(ctx) {
     foundBugsInventory.forEach((bug, index) => {
         // Basic check to prevent drawing too many items if inventory is very full
         // A more robust solution would involve a scrollable inventory
-        if (inventoryItemY + lineHeight + itemPadding > COMBINE_BUTTON_Y - COMBINE_BUTTON_MARGIN) {
+        // Items should stop drawing before the EXPLORE_BUTTON_Y minus its top margin
+        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > EXPLORE_BUTTON_Y - ACTION_BUTTON_MARGIN) {
             return;
         }
-        const itemAreaX = INVENTORY_X + itemPadding / 2; // Slight inset for highlight
-        const itemAreaY = inventoryItemY - (itemPadding / 2);
-        const itemAreaWidth = INVENTORY_WIDTH - (itemPadding); // Adjust width for inset
-        const itemAreaHeight = lineHeight + itemPadding;
+        const itemAreaX = INVENTORY_X + INV_ITEM_PADDING / 2;
+        const itemAreaY = currentItemY - (INV_ITEM_PADDING / 2);
+        const itemAreaWidth = INVENTORY_WIDTH - (INV_ITEM_PADDING);
+        const itemAreaHeight = INV_LINE_HEIGHT + INV_ITEM_PADDING;
 
         // Check if the current bug is in the selectedInventoryItems array
         if (selectedInventoryItems.includes(bug)) {
@@ -125,14 +171,14 @@ function drawUI(ctx) {
 
         // Simple color swatch next to the text
         ctx.fillStyle = bug.color;
-        ctx.fillRect(INVENTORY_X + itemPadding + 5, inventoryItemY + (lineHeight / 2) - 5, 10, 10);
+        ctx.fillRect(INVENTORY_X + INV_ITEM_PADDING + 5, currentItemY + (INV_LINE_HEIGHT / 2) - 5, 10, 10);
 
         // Reset to a standard text color for bug details
         ctx.fillStyle = '#111111';
         let bugText = `${index + 1}. ${bug.name} (${bug.points} pts)`;
-        ctx.fillText(bugText, INVENTORY_X + itemPadding + 20, inventoryItemY);
+        ctx.fillText(bugText, INVENTORY_X + INV_ITEM_PADDING + 20, currentItemY);
 
-        inventoryItemY += lineHeight + itemPadding;
+        currentItemY += INV_LINE_HEIGHT + INV_ITEM_PADDING;
     });
 
     // --- Draw Combine Button ---
@@ -141,26 +187,64 @@ function drawUI(ctx) {
     console.log("Combine Button Params: X:", COMBINE_BUTTON_X, "Y:", COMBINE_BUTTON_Y, "W:", COMBINE_BUTTON_WIDTH, "H:", COMBINE_BUTTON_HEIGHT, "Margin:", COMBINE_BUTTON_MARGIN);
     console.log("Selected items for button color:", selectedInventoryItems.length);
 
-    // Button background
-    ctx.fillStyle = '#4CAF50'; // Green color for the button
-    if (selectedInventoryItems.length === 2) {
-        ctx.fillStyle = '#388E3C'; // Darker green if exactly 2 items are selected
-    } else if (selectedInventoryItems.length !== 0 && selectedInventoryItems.length !== 2) {
-        ctx.fillStyle = '#FFC107'; // Amber/Orange if items selected but not 2 (to indicate invalid number for combine)
-    }
-    ctx.fillRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
-
-    // Button border
-    ctx.strokeStyle = '#2E7D32'; // Darker green border
+    // --- Draw EXPLORE Button ---
+    let exploreButtonText = "Explore";
+    ctx.fillStyle = (currentInteractionMode === 'exploring') ? '#0056b3' : (currentInteractionMode === 'normal' ? '#007bff' : '#6c757d'); // Blue, dark blue (active), gray (disabled)
+    ctx.fillRect(EXPLORE_BUTTON_X, EXPLORE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.strokeStyle = (currentInteractionMode === 'exploring') ? '#003f80' : '#0056b3';
     ctx.lineWidth = 2;
-    ctx.strokeRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
-
-    // Button text
-    ctx.fillStyle = '#FFFFFF'; // White text
-    ctx.font = 'bold 18px Arial';
+    ctx.strokeRect(EXPLORE_BUTTON_X, EXPLORE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 16px Arial'; // Slightly smaller font for these buttons
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    if (currentInteractionMode === 'exploring') exploreButtonText = "Cancel Explore";
+    ctx.fillText(exploreButtonText, EXPLORE_BUTTON_X + ACTION_BUTTON_WIDTH / 2, EXPLORE_BUTTON_Y + ACTION_BUTTON_HEIGHT / 2);
+
+    // --- Draw USE Button ---
+    let useButtonText = "Use Item";
+    const canUse = selectedInventoryItems.length === 1;
+    ctx.fillStyle = (currentInteractionMode === 'usingItem') ? '#1e7e34' : (currentInteractionMode === 'normal' && canUse ? '#28a745' : '#6c757d'); // Green, dark green (active), gray (disabled)
+    ctx.fillRect(USE_BUTTON_X, USE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.strokeStyle = (currentInteractionMode === 'usingItem') ? '#155724' : (currentInteractionMode === 'normal' && canUse ? '#1e7e34' : '#545b62');
+    ctx.strokeRect(USE_BUTTON_X, USE_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    // Font, textAlign, textBaseline already set from Explore button
+    if (currentInteractionMode === 'usingItem') useButtonText = "Cancel Use";
+    ctx.fillText(useButtonText, USE_BUTTON_X + ACTION_BUTTON_WIDTH / 2, USE_BUTTON_Y + ACTION_BUTTON_HEIGHT / 2);
+
+    // --- Draw COMBINE Button (existing logic, with slight adjustment for consistency if needed) ---
+    // Ensure it's disabled visually if not in 'normal' mode or wrong item count
+    const canCombine = selectedInventoryItems.length === 2;
+    ctx.fillStyle = (currentInteractionMode === 'normal' && canCombine) ? '#388E3C' : (currentInteractionMode === 'normal' && selectedInventoryItems.length !==0 && !canCombine ? '#FFC107' : (currentInteractionMode === 'normal' ? '#4CAF50' : '#6c757d'));
+    ctx.fillRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
+    ctx.strokeStyle = (currentInteractionMode === 'normal' && canCombine) ? '#2E7D32' : '#545b62';
+    ctx.strokeRect(COMBINE_BUTTON_X, COMBINE_BUTTON_Y, COMBINE_BUTTON_WIDTH, COMBINE_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 18px Arial'; // Keep Combine button font slightly larger
+    // textAlign, textBaseline already set
     ctx.fillText('Combine', COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH / 2, COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT / 2);
+
+    // --- Draw Log Message Area ---
+    // Background for log area (semi-transparent)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent black
+    ctx.fillRect(LOG_AREA_X, LOG_AREA_Y, LOG_AREA_WIDTH, LOG_AREA_HEIGHT);
+
+    // Log message text
+    ctx.fillStyle = '#FFFFFF'; // White text
+    ctx.font = `${LOG_FONT_SIZE}px Arial`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    // Simple truncation if message is too long (a more complex solution would wrap text)
+    const maxTextWidth = LOG_AREA_WIDTH - (2 * LOG_TEXT_MARGIN);
+    let textToDraw = latestLogMessage;
+    if (ctx.measureText(textToDraw).width > maxTextWidth) {
+        while (ctx.measureText(textToDraw + "...").width > maxTextWidth && textToDraw.length > 0) {
+            textToDraw = textToDraw.substring(0, textToDraw.length - 1);
+        }
+        textToDraw += "...";
+    }
+    ctx.fillText(textToDraw, LOG_AREA_X + LOG_TEXT_MARGIN, LOG_AREA_Y + LOG_AREA_HEIGHT / 2);
 
 
     // --- Existing Win Condition Message (Overlay) ---
@@ -274,15 +358,26 @@ function initGame() {
     scene1.addHotspot(hs_v1_s1);
     scene1.addHotspot(hs_o1_s1);
     const hs_puzzle_for_g1 = new Hotspot(50, 260, 100, 50,
-        function() { console.log("A strange mechanism. It seems to be missing a part."); },
-        "HS_Puzzle_GrayBugLocation", r1_s2.name,
         function() {
-            console.log("The Red Bug R1 fits perfectly! Gray Bug G1 revealed!");
-            findBugAction(g1_s1);
+            latestLogMessage = "A strange mechanism. It seems to be missing a part.";
+            console.log("A strange mechanism. It seems to be missing a part.");
         },
-        function(selectedItem) {
-            if (selectedItem) { console.log(`Using ${selectedItem.name} on the mechanism doesn't work.`); }
-            else { console.log("This looks like it needs something specific."); }
+        "HS_Puzzle_GrayBugLocation", r1_s2.name,
+        function() { // Success action
+            latestLogMessage = `The Red Bug R1 fits perfectly! ${g1_s1.name} revealed!`;
+            console.log("The Red Bug R1 fits perfectly! Gray Bug G1 revealed!");
+            findBugAction(g1_s1); // findBugAction will set its own "Found..." message after this one.
+        },
+        function(selectedItem, failureReason) { // Failure action
+            if (failureReason === "Too many items selected") {
+                latestLogMessage = "Too many items selected. Try using one item.";
+            } else if (selectedItem) {
+                latestLogMessage = `Using ${selectedItem.name} on the mechanism doesn't work.`;
+                console.log(`Using ${selectedItem.name} on the mechanism doesn't work.`);
+            } else {
+                latestLogMessage = "This looks like it needs something specific.";
+                console.log("This looks like it needs something specific.");
+            }
         },
         'bugStrongbox', g1_s1);
     scene1.addHotspot(hs_puzzle_for_g1);
@@ -317,15 +412,66 @@ function initGame() {
     scene3.addHotspot(hs_r2_s3_hotspot);
     scene3.addHotspot(hs_g2_s3_hotspot);
     scene3.addHotspot(hs_vio2_s3);
+
+    // Add the new "Ancient Cache" strongbox to Scene 3
+    const ancientCache = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 100, 100, 80, 60, // x, y, width, height (position in top-right of scene3)
+        function() {
+            // This onClickAction is less likely to be triggered if requiredItemName is set,
+            // as interaction will primarily go through 'Use' mode.
+            latestLogMessage = "This ancient cache seems tightly sealed.";
+        },
+        "Ancient Cache", // name
+        SHINING_VIOLET_GEM_NAME, // requiredItemName
+        function() { // onUseItemSuccessAction
+            latestLogMessage = "The Shining Violet Gem fits perfectly! The strongbox clicks open... it reveals a message: 'To be continued...'";
+            // Consider disabling the hotspot after successful use to prevent re-triggering
+            // 'this' inside this callback refers to the hotspot instance IF the action is bound correctly
+            // or if called via an arrow function that captures 'this' from where Hotspot is defined.
+            // However, Hotspot class does not automatically bind 'this' for these callbacks.
+            // So, to disable, we'd need a reference to ancientCache itself.
+            // For now, let's rely on the player not repeatedly using it.
+            // A robust way: ancientCache.isEnabled = false; (if ancientCache is accessible here)
+            // This specific instance 'ancientCache' is accessible here in initGame.
+            ancientCache.isEnabled = false;
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
+                 latestLogMessage = "Select the Shining Violet Gem, click 'Use Item', then click the cache.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} doesn't seem to fit the cache's indentation.`;
+            } else { // This case is for when 'Use' mode wasn't active or item was wrong (handled by Hotspot.trigger)
+                latestLogMessage = "The cache has a peculiar gem-shaped indentation. It might require a specific item used on it.";
+            }
+        },
+        'bugStrongbox', // iconType
+        null, // associatedBug
+        "An ancient, heavily sealed cache. It has a vibrant, gem-shaped indentation." // exploreText
+    );
+    scene3.addHotspot(ancientCache);
+
     const navHotspot_s3_to_s2 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene2_id', 'entryFromS3'); }, "NAV_S3_to_S2", null, null, null, 'door', null);
     scene3.addHotspot(navHotspot_s3_to_s2);
 
     // Set current scene and detective AFTER all scenes are populated
     currentScene = gameScenes['scene1_id'];
     const initialEntryPoint = currentScene.getEntryPoint('initialSpawnPoint');
+
+    // Define the callback for detective arrival messages
+    const detectiveOnArrivalCallback = (message) => {
+        latestLogMessage = message;
+    };
+
     if (!detective) {
-        detective = new Detective(initialEntryPoint.x, initialEntryPoint.y);
+        detective = new Detective(
+            initialEntryPoint.x,
+            initialEntryPoint.y,
+            detectiveOnArrivalCallback,
+            () => currentInteractionMode // Pass a getter for currentInteractionMode
+        );
     } else {
+        // If detective already exists, ensure its callbacks are updated if necessary (though typically only set on init)
+        // For simplicity, we assume callbacks are set once. If re-init needed different ones, more logic here.
         detective.x = initialEntryPoint.x;
         detective.y = initialEntryPoint.y;
         detective.targetX = initialEntryPoint.x;
@@ -364,6 +510,7 @@ function attemptCombination() { // Removed item1, item2 from parameters
 
     if (selectedInventoryItems.length !== 2) {
         console.log("[DEBUG] Combination failed: Exactly 2 items must be selected.");
+        latestLogMessage = "Select exactly 2 items to combine.";
         // Do not clear selection here, user might want to adjust selection.
         return false;
     }
@@ -411,12 +558,14 @@ function attemptCombination() { // Removed item1, item2 from parameters
 
             updateWinnableItemsCount(); // Update counts for win condition etc.
             selectedInventoryItems = []; // Clear selection after successful combination
+            latestLogMessage = `Combined ${item1.name} & ${item2.name} into: ${newItem.name}!`;
             console.log(`[DEBUG] Items combined successfully into: ${newItem.name}`);
             return true;
         }
     }
 
     console.log("[DEBUG] FAILURE: No matching recipe found for the selected items.");
+    latestLogMessage = `Cannot combine ${item1Name} and ${item2Name}.`;
     // Do not clear selection here, user might want to try combining with something else or deselect manually.
     return false;
 }
@@ -429,6 +578,7 @@ function findBugAction(bugInstance) {
         if (!foundBugsInventory.includes(bugInstance)) {
             foundBugsInventory.push(bugInstance);
         }
+        latestLogMessage = `Found: ${bugInstance.name}!`;
         updateWinnableItemsCount(); // New call
         // if (winnableItemsInInventoryCount === totalWinnableItems) { gameWon = true; ... } // Remove, handled by updateWinnableItemsCount
     }
@@ -453,6 +603,7 @@ function updateWinnableItemsCount() {
 function goToScene(targetSceneId, entryPointName) {
     if (gameScenes[targetSceneId]) {
         console.log(`Attempting to go to scene: '${targetSceneId}' using entry point: '${entryPointName}'`);
+        latestLogMessage = `Traveling to ${targetSceneId.replace('_id', '')}...`;
 
         if (currentScene && currentScene.setDetective) { // Ensure currentScene is valid and has setDetective
             currentScene.setDetective(null); // Remove detective from old scene
@@ -476,13 +627,8 @@ function goToScene(targetSceneId, entryPointName) {
         } else {
             console.warn("goToScene: Detective object not found.");
         }
-
-        // Any other logic needed on scene change (e.g., playing entry music, etc.)
-        // totalBugsInGame is global and does not change.
-        // bugsFoundCount is also global and persists across scenes.
-        // gameWon status also persists.
-
     } else {
+        latestLogMessage = `Error: Scene '${targetSceneId}' not found!`;
         console.error(`Scene with ID '${targetSceneId}' not found!`);
     }
 }
@@ -497,31 +643,66 @@ canvas.addEventListener('click', function(event) {
     const mouseY = event.clientY - rect.top;
 
     // --- Check for Inventory Click ---
-    // Constants for inventory layout (must match drawUI)
-    const invItemStartY = INVENTORY_Y + 45; // Starting Y for items after title
-    const invItemPadding = 5;
-    const invLineHeight = 18;
+    // Note: INV_ITEM_START_Y, INV_ITEM_PADDING, and INV_LINE_HEIGHT are now global constants
 
     if (mouseX >= INVENTORY_X && mouseX <= INVENTORY_X + INVENTORY_WIDTH &&
         mouseY >= INVENTORY_Y && mouseY <= INVENTORY_Y + INVENTORY_HEIGHT) {
 
+        // Check if Explore button was clicked
+        if (mouseX >= EXPLORE_BUTTON_X && mouseX <= EXPLORE_BUTTON_X + ACTION_BUTTON_WIDTH &&
+            mouseY >= EXPLORE_BUTTON_Y && mouseY <= EXPLORE_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
+            if (currentInteractionMode === 'exploring') {
+                currentInteractionMode = 'normal';
+                latestLogMessage = "Explore mode cancelled.";
+            } else if (currentInteractionMode === 'normal') {
+                currentInteractionMode = 'exploring';
+                latestLogMessage = "Explore mode: Click on an object or area in the scene.";
+            }
+            // If in 'usingItem' mode, clicking Explore does nothing or could show a message "Finish using item first"
+            // For now, it will do nothing if not 'normal' or 'exploring'
+            console.log("Explore button clicked. Mode:", currentInteractionMode);
+            return; // Click handled
+        }
+
+        // Check if Use button was clicked
+        if (mouseX >= USE_BUTTON_X && mouseX <= USE_BUTTON_X + ACTION_BUTTON_WIDTH &&
+            mouseY >= USE_BUTTON_Y && mouseY <= USE_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
+            if (currentInteractionMode === 'usingItem') {
+                currentInteractionMode = 'normal';
+                latestLogMessage = "Use cancelled.";
+                // selectedInventoryItems = []; // Optional: clear selection on cancel
+            } else if (currentInteractionMode === 'normal' && selectedInventoryItems.length === 1) {
+                currentInteractionMode = 'usingItem';
+                latestLogMessage = `Using ${selectedInventoryItems[0].name}. Click a hotspot to use it, or 'Cancel Use'.`;
+            } else if (currentInteractionMode === 'normal' && selectedInventoryItems.length !== 1) {
+                latestLogMessage = "Select exactly one item to use.";
+            }
+            // If in 'exploring' mode, clicking Use does nothing
+            console.log("Use button clicked. Mode:", currentInteractionMode);
+            return; // Click handled
+        }
+
         // Check if Combine button was clicked
         if (mouseX >= COMBINE_BUTTON_X && mouseX <= COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH &&
             mouseY >= COMBINE_BUTTON_Y && mouseY <= COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT) {
-            console.log("Combine button clicked");
-            attemptCombination(); // Call attemptCombination, which now uses selectedInventoryItems
+            if (currentInteractionMode === 'normal') { // Only allow combine in normal mode
+                console.log("Combine button clicked");
+                attemptCombination();
+            } else {
+                latestLogMessage = "Cannot combine items while in another mode.";
+            }
             return; // Click handled by Combine button
         }
 
-        // Click is within the inventory panel bounds (but not the combine button)
+        // Click is within the inventory panel bounds (but not the action buttons)
         let clickedInventoryItemIndex = -1;
         for (let i = 0; i < foundBugsInventory.length; i++) {
-            // Adjusted itemTopY to match drawUI's itemAreaY for highlight consistency
-            const itemTopY = invItemStartY + (i * (invLineHeight + invItemPadding)) - (itemPadding / 2);
-            const itemBottomY = itemTopY + invLineHeight + invItemPadding;
+            // Use global constants for item layout calculations
+            const itemTopY = INV_ITEM_START_Y + (i * (INV_LINE_HEIGHT + INV_ITEM_PADDING)) - (INV_ITEM_PADDING / 2);
+            const itemBottomY = itemTopY + INV_LINE_HEIGHT + INV_ITEM_PADDING;
 
-            const itemClickableXStart = INVENTORY_X + invItemPadding / 2;
-            const itemClickableXEnd = INVENTORY_X + INVENTORY_WIDTH - invItemPadding / 2;
+            const itemClickableXStart = INVENTORY_X + INV_ITEM_PADDING / 2;
+            const itemClickableXEnd = INVENTORY_X + INVENTORY_WIDTH - INV_ITEM_PADDING / 2;
 
             // Ensure the click is not overlapping where the combine button might be,
             // even if items list is short. This check is mostly for items ABOVE the button.
@@ -554,10 +735,11 @@ canvas.addEventListener('click', function(event) {
         return;
     }
 
-    // --- Existing Main Scene Click Logic (Hotspots & Movement) ---
+    // --- Main Scene Click Logic (Hotspots & Movement) based on Interaction Mode ---
+
+    // First, determine if a hotspot was clicked, regardless of mode (needed for all modes)
     let clickedHotspot = null;
     if (currentScene.hotspots) {
-        // Iterate in reverse to prioritize top-most hotspots if they overlap
         for (let i = currentScene.hotspots.length - 1; i >= 0; i--) {
             const hotspot = currentScene.hotspots[i];
             if (hotspot.isClicked(mouseX, mouseY)) {
@@ -567,21 +749,90 @@ canvas.addEventListener('click', function(event) {
         }
     }
 
-    if (clickedHotspot) {
-        // Player clicked on a hotspot.
-        // Move detective to the center of the hotspot, and set it as interaction target.
-        const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
-        const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
+    if (currentInteractionMode === 'usingItem') {
+        if (clickedHotspot) {
+            // Attempt to use the selected item on this hotspot
+            latestLogMessage = `Using ${selectedInventoryItems[0].name} on ${clickedHotspot.name}...`;
+            // Detective moves to hotspot, and upon arrival, Hotspot.trigger() is called.
+            // Hotspot.trigger() already uses selectedInventoryItems.
+            const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
+            const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+        } else {
+            // Clicked on empty ground while in 'usingItem' mode
+            latestLogMessage = "Use cancelled. Clicked on empty ground.";
+        }
+        currentInteractionMode = 'normal'; // Exit 'usingItem' mode after any scene click
+        // Note: selectedInventoryItems is NOT cleared here. It's cleared on successful use/combination or manually by user.
 
-        detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
-        console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
+    } else if (currentInteractionMode === 'exploring') {
+        if (clickedHotspot) {
+            latestLogMessage = clickedHotspot.exploreText || `You examine the ${clickedHotspot.name}. Nothing more to note.`;
+        } else {
+            // Select a random generic message for empty ground
+            latestLogMessage = GENERIC_EXPLORE_MESSAGES[Math.floor(Math.random() * GENERIC_EXPLORE_MESSAGES.length)];
+        }
+        currentInteractionMode = 'normal'; // Exit 'exploring' mode after one click
 
-    } else {
-        // Player clicked on empty ground. Move detective there with no interaction target.
-        detective.moveTo(mouseX, mouseY, null);
-        console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
+    } else { // currentInteractionMode === 'normal'
+        if (clickedHotspot) {
+            const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
+            const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+            latestLogMessage = `Moving to interact with ${clickedHotspot.name}...`;
+            console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
+        } else {
+            detective.moveTo(mouseX, mouseY, null);
+            latestLogMessage = `Moving to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
+            console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
+        }
     }
 });
+
+// Reset cursor when mouse leaves the canvas
+canvas.addEventListener('mouseleave', function() {
+    canvas.style.cursor = 'default'; // Always reset to default on mouse leave
+    cursorCurrentlyOverHotspot = false; // Ensure flag is reset
+});
+
+// Mousemove listener for cursor changes over hotspots
+canvas.addEventListener('mousemove', function(event) {
+    if (!currentScene) return; // Only process if a scene is active
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    let desiredCursor = 'default';
+    let isOverActiveHotspot = false;
+
+    if (currentScene.hotspots) {
+        for (let i = currentScene.hotspots.length - 1; i >= 0; i--) {
+            const hotspot = currentScene.hotspots[i];
+            if (hotspot.isClicked(mouseX, mouseY)) { // isClicked also checks isEnabled
+                isOverActiveHotspot = true;
+                if (hotspot.requiredItemName) {
+                    if (currentInteractionMode === 'usingItem' &&
+                        selectedInventoryItems.length === 1 &&
+                        selectedInventoryItems[0].name === hotspot.requiredItemName) {
+                        desiredCursor = 'copy'; // Correct item selected in 'use' mode
+                    } else {
+                        desiredCursor = 'help'; // Needs an item, but not correctly prepared
+                    }
+                } else {
+                    desiredCursor = 'pointer'; // Standard interactive hotspot
+                }
+                break;
+            }
+        }
+    }
+
+    if (canvas.style.cursor !== desiredCursor) {
+        canvas.style.cursor = desiredCursor;
+    }
+    cursorCurrentlyOverHotspot = isOverActiveHotspot; // Update global flag
+});
+
 
 // Start the game
 initGame();

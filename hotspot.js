@@ -6,7 +6,9 @@ class Hotspot {
                 onUseItemSuccessAction = null,
                 onUseItemFailureAction = null,
                 iconType = 'debugRect', // Default to debugRect for existing/unspecified
-                associatedBug = null) {
+                associatedBug = null,
+                exploreText = `This is a ${name || 'hotspot'}. It looks interactive.` // Default explore text
+                ) {
         this.x = x;
         this.y = y;
         this.width = width;
@@ -21,6 +23,7 @@ class Hotspot {
 
         this.iconType = iconType;
         this.associatedBug = associatedBug;
+        this.exploreText = exploreText; // Store the explore text
     }
 
     isClicked(mouseX, mouseY) {
@@ -29,53 +32,69 @@ class Hotspot {
                mouseY >= this.y && mouseY <= this.y + this.height;
     }
 
-    trigger() {
+    trigger(setMessageCallback = (msg) => { console.log("Log (from Hotspot):", msg); }, currentInteractionMode = 'normal') {
         if (!this.isEnabled) return;
 
-        // Assumes selectedInventoryItems is a global array from adventure_game.js
+        // If the hotspot requires an item, first check if player is in 'usingItem' mode.
         if (this.requiredItemName) {
+            if (currentInteractionMode !== 'usingItem') {
+                setMessageCallback("You need to be in 'Use' mode. Select an item, click 'Use Item', then click the hotspot.");
+                return;
+            }
+
+            // Proceed with item check only if in 'usingItem' mode
             let itemToUse = null;
             if (selectedInventoryItems && selectedInventoryItems.length === 1) {
                 itemToUse = selectedInventoryItems[0];
             } else if (selectedInventoryItems && selectedInventoryItems.length > 1) {
-                console.log(`Hotspot ${this.name} requires a single item, but multiple are selected. Please select only one item to use.`);
+                // This case should ideally be prevented by 'Use' button logic, but as a fallback:
+                const message = `Hotspot ${this.name}: 'Use' mode active, but multiple items selected. Select only one.`;
+                setMessageCallback(message);
+                console.log(message);
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    // Pass null or a specific message indicating too many items selected
-                    this.onUseItemFailureAction(null, "Too many items selected");
+                    // Pass a specific reason if the callback supports it
+                    this.onUseItemFailureAction(null, "Too many items selected while using");
+                }
+                return;
+            } else { // No item selected, though in 'usingItem' mode (e.g. item consumed by previous action)
+                 const message = `Hotspot ${this.name}: 'Use' mode active, but no item is selected.`;
+                setMessageCallback(message);
+                console.log(message);
+                if (typeof this.onUseItemFailureAction === 'function') {
+                     this.onUseItemFailureAction(null, "No item selected while using");
                 }
                 return;
             }
 
+            // At this point, in 'usingItem' mode and exactly one item is selected.
             if (itemToUse && itemToUse.name === this.requiredItemName) {
                 if (typeof this.onUseItemSuccessAction === 'function') {
                     this.onUseItemSuccessAction();
-                    // Potentially clear selectedInventoryItems or remove the used item after successful use
-                    // For now, let adventure_game.js handle item removal if needed via the success action.
-                    // selectedInventoryItems = []; // Example: clear selection after use
-                    return;
                 } else {
-                    console.log(`Hotspot ${this.name} was used with correct item ${itemToUse.name}, but no success action defined.`);
+                    const message = `${this.name}: Used ${itemToUse.name}, but no specific success action defined.`;
+                    setMessageCallback(message);
+                    console.log(message);
                 }
-            } else {
-                // This block handles cases where:
-                // 1. No item is selected (itemToUse is null because selectedInventoryItems is empty)
-                // 2. One item is selected, but it's the wrong item.
+            } else { // Wrong item selected for use
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    this.onUseItemFailureAction(itemToUse); // itemToUse will be null if nothing was selected
+                    this.onUseItemFailureAction(itemToUse);
                 } else {
-                    if (itemToUse) {
-                        console.log(`Using ${itemToUse.name} on ${this.name} doesn't seem to work.`);
-                    } else {
-                        console.log(`${this.name} might need a specific item. Nothing selected or suitable.`);
+                    if (itemToUse) { // Should always be true here if we passed the selection checks
+                        setMessageCallback(`Cannot use ${itemToUse.name} on ${this.name}.`);
+                    } else { // Should not be reached if logic above is correct
+                        setMessageCallback(`${this.name}: An unknown item error occurred during use.`);
                     }
                 }
                 return;
             }
         } else if (typeof this.onClickAction === 'function') {
-            // Hotspot does not require an item, just perform its click action
+            // Hotspot does not require an item, standard click action
+            // (Can still be triggered even if in 'usingItem' mode if user clicks a non-item hotspot)
             this.onClickAction();
         } else {
-            console.log(`Hotspot ${this.name} clicked, but has no defined action.`);
+            const message = `${this.name}: Clicked, but has no defined action.`;
+            setMessageCallback(message);
+            console.log(message);
         }
     }
 
