@@ -12,10 +12,13 @@ class Detective {
         this.targetY = y;
         this.isMoving = false;
         this.movementSpeed = 150;
+        this.boostedMovementSpeed = this.movementSpeed * 2; // e.g., double speed
+        this.isBoostedMove = false; // Flag for current move
         this.interactionTargetHotspot = null;
+        this.latchedInteractionMode = null;
     }
 
-    moveTo(x, y, targetHotspot = null) {
+    moveTo(x, y, targetHotspot = null, interactionModeForThisMove = null, isBoosted = false) {
         // Centering logic for target
         let intendedTargetX = x - this.width / 2;
         let intendedTargetY = y - this.height / 2;
@@ -42,7 +45,14 @@ class Detective {
         this.targetX = intendedTargetX;
         this.targetY = intendedTargetY;
         this.isMoving = true;
-        this.interactionTargetHotspot = targetHotspot; // Store the hotspot
+        this.interactionTargetHotspot = targetHotspot;
+        this.isBoostedMove = isBoosted; // Set boosted state for this move
+
+        if (targetHotspot) {
+            this.latchedInteractionMode = interactionModeForThisMove;
+        } else {
+            this.latchedInteractionMode = null; // Clear latched mode if just moving to a point
+        }
     }
 
     update(deltaTime) {
@@ -54,12 +64,14 @@ class Detective {
         const dy = this.targetY - this.y;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        const moveAmount = this.movementSpeed * deltaTime;
+        const currentSpeed = this.isBoostedMove ? this.boostedMovementSpeed : this.movementSpeed;
+        const moveAmount = currentSpeed * deltaTime;
 
         if (distance <= moveAmount || distance < 1) { // Use a small threshold like 1 pixel
             this.x = this.targetX;
             this.y = this.targetY;
             this.isMoving = false;
+            this.isBoostedMove = false; // Reset boost status on arrival
 
             let arrivalMessage = "Arrived at destination.";
             if (this.interactionTargetHotspot) {
@@ -77,14 +89,18 @@ class Detective {
                     // This part is complex as trigger is called here.
                     // The onArrivalCallback is for the detective's arrival itself,
                     // but we can reuse it as the setMessageCallback for the hotspot.
-                    const currentMode = typeof this.getInteractionModeCallback === 'function' ? this.getInteractionModeCallback() : 'normal';
+
+                    // Prioritize latched mode for this specific interaction, fallback to global current mode
+                    const modeForHotspotTrigger = this.latchedInteractionMode ||
+                                                 (typeof this.getInteractionModeCallback === 'function' ?
+                                                  this.getInteractionModeCallback() : 'normal');
+
                     if (typeof this.onArrivalCallback === 'function') {
-                        this.interactionTargetHotspot.trigger(this.onArrivalCallback, currentMode);
+                        this.interactionTargetHotspot.trigger(this.onArrivalCallback, modeForHotspotTrigger);
                     } else {
-                        // If detective has no onArrivalCallback, hotspot's default setMessageCallback will be used.
-                        // Still pass the mode.
-                        this.interactionTargetHotspot.trigger(undefined, currentMode);
+                        this.interactionTargetHotspot.trigger(undefined, modeForHotspotTrigger);
                     }
+                    this.latchedInteractionMode = null; // Clear the latched mode after the trigger
                 } else {
                     arrivalMessage = `Arrived at ${this.interactionTargetHotspot.name}, but it's no longer active.`;
                     if (typeof this.onArrivalCallback === 'function') {

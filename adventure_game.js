@@ -20,6 +20,19 @@ let latestLogMessage = "Welcome to Detective Polyspace!"; // For displaying game
 let currentInteractionMode = 'normal'; // Possible values: 'normal', 'usingItem', 'exploring'
 let cursorCurrentlyOverHotspot = false; // Tracks if the cursor is currently set to a hotspot-specific style
 
+// Double-click tracking variables
+let lastSceneClickTime = 0;
+let lastSceneClickX = -1;
+let lastSceneClickY = -1;
+const DOUBLE_CLICK_THRESHOLD = 400; // milliseconds
+const CLICK_AREA_TOLERANCE = 10;  // pixels
+
+// Parchment Modal State Variables
+let isParchmentVisible = false;
+let parchmentTitle = "";
+let parchmentContent = "";
+let pendingClueToAdd = null; // Stores a Bug object to be added to inventory after parchment dismissal
+
 const GENERIC_EXPLORE_MESSAGES = [
     "The digital hum of the datasphere is strong here.",
     "Loose data packets drift by like digital tumbleweeds.",
@@ -70,6 +83,10 @@ const USE_BUTTON_Y = COMBINE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MAR
 // EXPLORE button sits above USE
 const EXPLORE_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
 const EXPLORE_BUTTON_Y = USE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
+
+// INSPECT button sits above EXPLORE (making it the topmost action button)
+const INSPECT_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
+const INSPECT_BUTTON_Y = EXPLORE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
 
 
 // Inventory Item Layout Constants (moved to global scope)
@@ -154,8 +171,8 @@ function drawUI(ctx) {
     foundBugsInventory.forEach((bug, index) => {
         // Basic check to prevent drawing too many items if inventory is very full
         // A more robust solution would involve a scrollable inventory
-        // Items should stop drawing before the EXPLORE_BUTTON_Y minus its top margin
-        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > EXPLORE_BUTTON_Y - ACTION_BUTTON_MARGIN) {
+        // Items should stop drawing before the INSPECT_BUTTON_Y minus its top margin
+        if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > INSPECT_BUTTON_Y - ACTION_BUTTON_MARGIN) {
             return;
         }
         const itemAreaX = INVENTORY_X + INV_ITEM_PADDING / 2;
@@ -186,6 +203,19 @@ function drawUI(ctx) {
     console.log("Inventory Panel: X:", INVENTORY_X, "Y:", INVENTORY_Y, "W:", INVENTORY_WIDTH, "H:", INVENTORY_HEIGHT);
     console.log("Combine Button Params: X:", COMBINE_BUTTON_X, "Y:", COMBINE_BUTTON_Y, "W:", COMBINE_BUTTON_WIDTH, "H:", COMBINE_BUTTON_HEIGHT, "Margin:", COMBINE_BUTTON_MARGIN);
     console.log("Selected items for button color:", selectedInventoryItems.length);
+
+    // --- Draw INSPECT Button ---
+    const canInspect = currentInteractionMode === 'normal' && selectedInventoryItems.length === 1;
+    ctx.fillStyle = canInspect ? '#6f42c1' : '#6c757d'; // Indigo for enabled, gray for disabled
+    ctx.fillRect(INSPECT_BUTTON_X, INSPECT_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.strokeStyle = canInspect ? '#5a2aa0' : '#545b62';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(INSPECT_BUTTON_X, INSPECT_BUTTON_Y, ACTION_BUTTON_WIDTH, ACTION_BUTTON_HEIGHT);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 16px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText("Inspect Item", INSPECT_BUTTON_X + ACTION_BUTTON_WIDTH / 2, INSPECT_BUTTON_Y + ACTION_BUTTON_HEIGHT / 2);
 
     // --- Draw EXPLORE Button ---
     let exploreButtonText = "Explore";
@@ -260,7 +290,75 @@ function drawUI(ctx) {
         ctx.font = '24px Arial';
         ctx.fillText(`Final Score: ${score}`, centerX, canvas.height / 2 + 20);
     }
+
+    // --- Draw Parchment Modal (If Visible) ---
+    // This should be drawn on top of most other UI, but potentially below a game menu if one existed.
+    // The parchment modal itself handles dimming the full screen.
+    if (isParchmentVisible) {
+        drawParchmentModal(ctx);
+    }
 }
+
+function drawParchmentModal(ctx) {
+    // if (!isParchmentVisible) return; // This check is now done by the caller in drawUI for clarity
+
+    // Modal dimensions and positioning (centered in game view)
+    const gameViewWidth = canvas.width - INVENTORY_WIDTH;
+    const modalWidth = gameViewWidth * 0.7;
+    const modalHeight = canvas.height * 0.6;
+    const modalX = (gameViewWidth - modalWidth) / 2;
+    const modalY = (canvas.height - modalHeight) / 2;
+
+    // Semi-transparent overlay for the background (optional, to dim the game)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height); // Cover full canvas
+
+    // Parchment background
+    ctx.fillStyle = '#F5F5DC'; // Beige parchment color
+    ctx.fillRect(modalX, modalY, modalWidth, modalHeight);
+    ctx.strokeStyle = '#8B4513'; // SaddleBrown border
+    ctx.lineWidth = 3;
+    ctx.strokeRect(modalX, modalY, modalWidth, modalHeight);
+
+    // Title
+    ctx.fillStyle = '#5D4037'; // Dark brown text
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(parchmentTitle, modalX + modalWidth / 2, modalY + 20);
+
+    // Content (with basic text wrapping)
+    ctx.font = '16px Arial';
+    ctx.textAlign = 'left';
+    const contentX = modalX + 20;
+    const contentYStart = modalY + 60;
+    const contentWidth = modalWidth - 40;
+    const lineHeight = 20;
+    let currentContentY = contentYStart;
+
+    const words = parchmentContent.split(' ');
+    let line = '';
+
+    for (let n = 0; n < words.length; n++) {
+        let testLine = line + words[n] + ' ';
+        let metrics = ctx.measureText(testLine);
+        let testWidth = metrics.width;
+        if (testWidth > contentWidth && n > 0) {
+            ctx.fillText(line, contentX, currentContentY);
+            line = words[n] + ' ';
+            currentContentY += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+    ctx.fillText(line, contentX, currentContentY); // Draw the last line
+
+    // "Click to close" hint
+    ctx.font = 'italic 14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText("(Click anywhere to close)", modalX + modalWidth / 2, modalY + modalHeight - 20);
+}
+
 
 function updateWinnableItemsCount() {
     winnableItemsInInventoryCount = 0;
@@ -302,19 +400,31 @@ function initGame() {
     // 1. Declare bug variables (already global or higher scope in this file)
     // let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
     // let vio1_s2, vio2_s3;
+    let rustyKey; // Declare key here to be accessible for adding to inventory & hotspot def
 
     // 2. Instantiate all Bug objects
-    v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1");
-    o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1");
-    g1_s1 = new Bug(100, 280, 'gray', pointsGray, "Gray Bug G1");
+    v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1", false, false, '', '',
+                  "A common, yet elusive green data-bug. Often found nesting in older code structures.");
+    o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1"); // No specific description/hint yet
+    g1_s1 = new Bug(100, 280, 'gray', pointsGray, "Gray Bug G1", false, false, '', '',
+                  "This gray bug seems to pulse with a faint, rhythmic energy.");
 
-    r1_s2 = new Bug(150, 200, 'red', pointsRed, "Red Bug R1");
+    r1_s2 = new Bug(150, 200, 'red', pointsRed, "Red Bug R1", false, false, '', '',
+                  "A fiery red bug, surprisingly warm to the digital touch. It looks sturdy enough to be a key of sorts.");
     v2_s2 = new Bug(150, 250, 'green', pointsGreen, "Green Bug V2");
-    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_ALPHA_NAME);
+    vio1_s2 = new Bug(250, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_ALPHA_NAME, false, false, '', '',
+                    "A shimmering violet fragment. It feels incomplete, humming softly.",
+                    "Perhaps it could be combined with another similar fragment?");
 
     r2_s3 = new Bug(200, 200, 'red', pointsRed, "Red Bug R2");
     g2_s3 = new Bug(200, 250, 'gray', pointsGray, "Gray Bug G2");
-    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME);
+    vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME, false, false, '', '',
+                    "Another piece of the violet puzzle. This one resonates with a slightly different frequency.",
+                    "It seems to yearn for its counterpart.");
+
+    rustyKey = new Bug(0, 0, '#A0A0A0', 0, "Rusty Key", true, false, '', '', // x,y,color,pts,name,found,isReadable,msgTitle,msgContent
+                     "An old, very rusty key. It looks like it might fit a simple lock.", ""); // description, combineHint
+    foundBugsInventory.push(rustyKey); // Add to inventory for testing
 
     // Scene Setup
     const scene1 = new Scene('scene1_id', '#E0E0E0');
@@ -381,8 +491,40 @@ function initGame() {
         },
         'bugStrongbox', g1_s1);
     scene1.addHotspot(hs_puzzle_for_g1);
-    const navHotspot_s1_to_s2 = new Hotspot(canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50,
-        function() { goToScene('scene2_id', 'entryFromS1'); }, "NAV_S1_to_S2", null, null, null, 'door', null);
+
+    // Define the door from Scene 1 to Scene 2 (now locked)
+    const navHotspot_s1_to_s2 = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50, // x, y, width, height
+        function() { // onClickAction: navigate if unlocked
+            // This action is called by Hotspot.trigger if requiredItemName is null,
+            // OR by the onUseItemSuccessAction after unlocking.
+            goToScene('scene2_id', 'entryFromS1');
+        },
+        "Door to Scene 2", // name
+        "Rusty Key", // requiredItemName - initially locked, requires "Rusty Key"
+        function() { // onUseItemSuccessAction - when Rusty Key is used successfully
+            latestLogMessage = "The Rusty Key turns the lock! The door to Scene 2 is now open.";
+            navHotspot_s1_to_s2.requiredItemName = null; // Unlock the door by referencing the instance
+            navHotspot_s1_to_s2.exploreText = "An unlocked door leading to Scene 2."; // Update explore text
+            // Automatically go through the door after unlocking
+            if(typeof navHotspot_s1_to_s2.onClickAction === 'function') {
+                navHotspot_s1_to_s2.onClickAction();
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
+                latestLogMessage = "Select the Rusty Key, click 'Use Item', then click the door.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} doesn't fit this lock.`;
+            } else {
+                 // This path is less likely now given Hotspot.trigger's mode checks
+                latestLogMessage = "This door is locked. It seems to need a key.";
+            }
+        },
+        'door', // iconType
+        null, // associatedBug
+        "A sturdy door, currently locked. It leads to what you assume is Scene 2." // exploreText
+    );
     scene1.addHotspot(navHotspot_s1_to_s2);
 
     // --- SCENE 2 Content ---
@@ -424,23 +566,24 @@ function initGame() {
         "Ancient Cache", // name
         SHINING_VIOLET_GEM_NAME, // requiredItemName
         function() { // onUseItemSuccessAction
-            latestLogMessage = "The Shining Violet Gem fits perfectly! The strongbox clicks open... it reveals a message: 'To be continued...'";
-            // Consider disabling the hotspot after successful use to prevent re-triggering
-            // 'this' inside this callback refers to the hotspot instance IF the action is bound correctly
-            // or if called via an arrow function that captures 'this' from where Hotspot is defined.
-            // However, Hotspot class does not automatically bind 'this' for these callbacks.
-            // So, to disable, we'd need a reference to ancientCache itself.
-            // For now, let's rely on the player not repeatedly using it.
-            // A robust way: ancientCache.isEnabled = false; (if ancientCache is accessible here)
-            // This specific instance 'ancientCache' is accessible here in initGame.
-            ancientCache.isEnabled = false;
+            parchmentTitle = "Ancient Cache Opened"; // Title for the parchment
+            parchmentContent = "The Shining Violet Gem fits perfectly! The strongbox clicks open... it reveals a message: 'To be continued...'";
+            isParchmentVisible = true;
+
+            // Define the clue item to be added to inventory after parchment is dismissed
+            // Name, color, points, actual name, found status, isReadable, messageTitle, messageContent
+            pendingClueToAdd = new Bug(0, 0, '#E0D6B3', 0, 'Ancient Cache Note', true, true, parchmentTitle, parchmentContent);
+
+            ancientCache.isEnabled = false; // Disable hotspot after successful use
+            latestLogMessage = "The Ancient Cache opens!"; // Brief log message, parchment will show details
         },
         function(selectedItem, failureReason) { // onUseItemFailureAction
             if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
                  latestLogMessage = "Select the Shining Violet Gem, click 'Use Item', then click the cache.";
             } else if (selectedItem) {
                 latestLogMessage = `The ${selectedItem.name} doesn't seem to fit the cache's indentation.`;
-            } else { // This case is for when 'Use' mode wasn't active or item was wrong (handled by Hotspot.trigger)
+            } else {
+                // This specific 'else' might be less reached if Hotspot.trigger handles "not in use mode" first
                 latestLogMessage = "The cache has a peculiar gem-shaped indentation. It might require a specific item used on it.";
             }
         },
@@ -636,6 +779,23 @@ function goToScene(targetSceneId, entryPointName) {
 
 // Canvas click event listener
 canvas.addEventListener('click', function(event) {
+    if (isParchmentVisible) {
+        isParchmentVisible = false;
+        if (pendingClueToAdd) {
+            // Avoid adding duplicate notes if something unexpected happens
+            if (!foundBugsInventory.some(item => item.name === pendingClueToAdd.name)) {
+                foundBugsInventory.push(pendingClueToAdd);
+                latestLogMessage = `Added '${pendingClueToAdd.name}' to inventory.`;
+                // updateWinnableItemsCount(); // Only if notes contribute to win condition
+            }
+            pendingClueToAdd = null; // Clear it regardless
+        }
+        // Consider redrawing immediately if input was truly blocked:
+        // if (currentScene) currentScene.draw(ctx);
+        // drawUI(ctx);
+        return; // Consume the click, do nothing else.
+    }
+
     if (!currentScene || !detective) return;
 
     const rect = canvas.getBoundingClientRect();
@@ -648,6 +808,51 @@ canvas.addEventListener('click', function(event) {
     if (mouseX >= INVENTORY_X && mouseX <= INVENTORY_X + INVENTORY_WIDTH &&
         mouseY >= INVENTORY_Y && mouseY <= INVENTORY_Y + INVENTORY_HEIGHT) {
 
+        // Check if Inspect Item button was clicked
+        if (mouseX >= INSPECT_BUTTON_X && mouseX <= INSPECT_BUTTON_X + ACTION_BUTTON_WIDTH &&
+            mouseY >= INSPECT_BUTTON_Y && mouseY <= INSPECT_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
+            if (currentInteractionMode === 'normal' && selectedInventoryItems.length === 1) {
+                const itemToInspect = selectedInventoryItems[0];
+                pendingClueToAdd = null; // Ensure we don't add a new item from a previous action
+
+                if (itemToInspect.isReadable && itemToInspect.messageContent) {
+                    parchmentTitle = itemToInspect.messageTitle || itemToInspect.name;
+                    parchmentContent = itemToInspect.messageContent;
+                    isParchmentVisible = true;
+                    latestLogMessage = `Inspecting: ${itemToInspect.name}`;
+                } else {
+                    // Item is not 'isReadable', so show its details
+                    let inspectionDetails = `Name: ${itemToInspect.name}\nPoints: ${itemToInspect.points}`;
+                    // Color is visually represented by swatch, so might not be needed here unless desired.
+                    // inspectionDetails += `\nColor: ${itemToInspect.color}`;
+
+                    if (itemToInspect.description && itemToInspect.description.trim() !== "") {
+                        inspectionDetails += `\n\n${itemToInspect.description}`;
+                    }
+                    if (itemToInspect.combineHint && itemToInspect.combineHint.trim() !== "") {
+                        inspectionDetails += `\n\nHint: ${itemToInspect.combineHint}`;
+                    }
+
+                    // Fallback generic detail if no specific description/hint
+                    if ((!itemToInspect.description || itemToInspect.description.trim() === "") &&
+                        (!itemToInspect.combineHint || itemToInspect.combineHint.trim() === "")) {
+                        inspectionDetails += "\n\nIt appears to be a standard data-bug or fragment.";
+                    }
+
+                    parchmentTitle = `Details: ${itemToInspect.name}`;
+                    parchmentContent = inspectionDetails;
+                    isParchmentVisible = true;
+                    latestLogMessage = `Inspecting: ${itemToInspect.name}`;
+                }
+            } else if (currentInteractionMode !== 'normal') {
+                latestLogMessage = "Cannot inspect items while in another mode.";
+            } else {
+                latestLogMessage = "Select a single item to inspect.";
+            }
+            console.log("Inspect Item button clicked.");
+            return; // Click handled
+        }
+
         // Check if Explore button was clicked
         if (mouseX >= EXPLORE_BUTTON_X && mouseX <= EXPLORE_BUTTON_X + ACTION_BUTTON_WIDTH &&
             mouseY >= EXPLORE_BUTTON_Y && mouseY <= EXPLORE_BUTTON_Y + ACTION_BUTTON_HEIGHT) {
@@ -658,8 +863,7 @@ canvas.addEventListener('click', function(event) {
                 currentInteractionMode = 'exploring';
                 latestLogMessage = "Explore mode: Click on an object or area in the scene.";
             }
-            // If in 'usingItem' mode, clicking Explore does nothing or could show a message "Finish using item first"
-            // For now, it will do nothing if not 'normal' or 'exploring'
+            // If in 'usingItem' mode, clicking Explore does nothing
             console.log("Explore button clicked. Mode:", currentInteractionMode);
             return; // Click handled
         }
@@ -754,16 +958,31 @@ canvas.addEventListener('click', function(event) {
             // Attempt to use the selected item on this hotspot
             latestLogMessage = `Using ${selectedInventoryItems[0].name} on ${clickedHotspot.name}...`;
             // Detective moves to hotspot, and upon arrival, Hotspot.trigger() is called.
-            // Hotspot.trigger() already uses selectedInventoryItems.
+            // Hotspot.trigger() will use the mode passed by detective.moveTo.
             const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
             const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
-            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot, 'usingItem'); // Pass 'usingItem' mode
         } else {
             // Clicked on empty ground while in 'usingItem' mode
             latestLogMessage = "Use cancelled. Clicked on empty ground.";
+            currentInteractionMode = 'normal'; // Reset global mode only if not interacting with hotspot
         }
-        currentInteractionMode = 'normal'; // Exit 'usingItem' mode after any scene click
-        // Note: selectedInventoryItems is NOT cleared here. It's cleared on successful use/combination or manually by user.
+        // If a hotspot was clicked, global currentInteractionMode is reset AFTER the interaction attempt
+        // by the logic within Detective.update() implicitly (as latched mode is used) or explicitly if needed.
+        // For now, resetting it here for clicks on empty ground is correct.
+        // If hotspot clicked, it remains 'usingItem' until detective acts & clears its latched mode.
+        // The global mode should be reset after the action. Let's adjust this:
+        // Global mode is reset to 'normal' if empty ground is clicked.
+        // If hotspot is clicked, the 'usingItem' mode is latched by detective.moveTo,
+        // and global mode can be reset.
+        if (!clickedHotspot) { // If we clicked empty ground
+             currentInteractionMode = 'normal';
+        } else {
+            // If we clicked a hotspot, the global mode can also be reset here,
+            // as the 'usingItem' intent is now latched with the detective's move.
+            currentInteractionMode = 'normal';
+        }
+
 
     } else if (currentInteractionMode === 'exploring') {
         if (clickedHotspot) {
@@ -775,16 +994,31 @@ canvas.addEventListener('click', function(event) {
         currentInteractionMode = 'normal'; // Exit 'exploring' mode after one click
 
     } else { // currentInteractionMode === 'normal'
+        const clickTime = performance.now();
+        const timeSinceLastClick = clickTime - lastSceneClickTime;
+        let isBoosted = false;
+
+        if (timeSinceLastClick < DOUBLE_CLICK_THRESHOLD &&
+            Math.abs(mouseX - lastSceneClickX) < CLICK_AREA_TOLERANCE &&
+            Math.abs(mouseY - lastSceneClickY) < CLICK_AREA_TOLERANCE) {
+            isBoosted = true;
+            lastSceneClickTime = 0; // Reset to prevent third click being double
+        } else {
+            lastSceneClickTime = clickTime;
+            lastSceneClickX = mouseX;
+            lastSceneClickY = mouseY;
+        }
+
         if (clickedHotspot) {
             const targetInteractionX = clickedHotspot.x + clickedHotspot.width / 2;
             const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
-            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot);
-            latestLogMessage = `Moving to interact with ${clickedHotspot.name}...`;
-            console.log(`Detective moving to interact with hotspot: ${clickedHotspot.name}`);
-        } else {
-            detective.moveTo(mouseX, mouseY, null);
-            latestLogMessage = `Moving to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
-            console.log(`Detective moving to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
+            detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot, null, isBoosted);
+            latestLogMessage = `${isBoosted ? "Quickly moving" : "Moving"} to interact with ${clickedHotspot.name}...`;
+            console.log(`${isBoosted ? "Quickly moving" : "Moving"} to interact with hotspot: ${clickedHotspot.name}`);
+        } else { // Clicked on empty ground
+            detective.moveTo(mouseX, mouseY, null, null, isBoosted);
+            latestLogMessage = `${isBoosted ? "Quickly moving" : "Moving"} to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
+            console.log(`${isBoosted ? "Quickly moving" : "Moving"} to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
         }
     }
 });

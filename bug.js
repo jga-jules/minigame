@@ -1,13 +1,22 @@
 class Bug {
-    constructor(x, y, color = 'red', points = 10, name = 'Unnamed Bug') {
-        this.x = x; // Position where it appears when found
+    constructor(x, y, color = 'red', points = 10, name = 'Unnamed Bug',
+                found = false, isReadable = false, messageTitle = '', messageContent = '',
+                description = '', combineHint = '') {
+        this.x = x; // Position - less relevant for pure clue items not drawn in scene
         this.y = y;
-        this.width = 20; // Standard size for drawing shapes
+        this.width = 20; // Standard size for inventory icon representation
         this.height = 20;
-        this.color = color;
-        this.points = points;
+        this.color = color; // Used for swatch in inventory; can be parchment-like for notes
+        this.points = points; // Clues might have 0 points
         this.name = name;
-        this.found = false;
+        this.found = found; // Should be true if it's in inventory by default
+
+        this.isReadable = isReadable;
+        this.messageTitle = messageTitle;
+        this.messageContent = messageContent;
+
+        this.description = description; // General description for inspection
+        this.combineHint = combineHint; // Hint for combinable items
     }
 
     markAsFound() {
