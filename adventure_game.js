@@ -400,7 +400,8 @@ function initGame() {
     // 1. Declare bug variables (already global or higher scope in this file)
     // let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
     // let vio1_s2, vio2_s3;
-    let rustyKey; // Declare key here to be accessible for adding to inventory & hotspot def
+    let rustyKey;
+    let goldenKey; // Declare Golden Key
 
     // 2. Instantiate all Bug objects
     v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1", false, false, '', '',
@@ -422,9 +423,12 @@ function initGame() {
                     "Another piece of the violet puzzle. This one resonates with a slightly different frequency.",
                     "It seems to yearn for its counterpart.");
 
-    rustyKey = new Bug(0, 0, '#A0A0A0', 0, "Rusty Key", true, false, '', '', // x,y,color,pts,name,found,isReadable,msgTitle,msgContent
+    rustyKey = new Bug(0, 0, '#A0A0A0', 0, "Rusty Key", false, false, '', '', // x,y,color,pts,name,found (now false),isReadable,msgTitle,msgContent
                      "An old, very rusty key. It looks like it might fit a simple lock.", ""); // description, combineHint
-    foundBugsInventory.push(rustyKey); // Add to inventory for testing
+    // foundBugsInventory.push(rustyKey); // Removed from starting inventory
+
+    goldenKey = new Bug(0, 0, 'gold', 10, "Golden Key", false, false, '', '', // x,y,color,pts,name,found,isReadable,msgTitle,msgContent
+                      "A shiny golden key. It feels important and fits no ordinary lock.", ""); // description, combineHint
 
     // Scene Setup
     const scene1 = new Scene('scene1_id', '#E0E0E0');
@@ -458,11 +462,71 @@ function initGame() {
     scene3.addBackgroundText("};", 50, 250, 'bold 36px monospace', '#222244');
     gameScenes['scene3_id'] = scene3;
 
+    const scene4 = new Scene('scene4_id', '#D8D8D8'); // Light gray, slightly different from s1
+    scene4.addBackgroundText("ARCHIVE HALL", canvas.width / 2 - INVENTORY_WIDTH / 2, 50, 'bold 40px Arial', '#333333', 'center');
+    scene4.addBackgroundText("Rows of digital shelves stretch into the distance.", 50, 120, '20px Arial', '#444444');
+    scene4.addBackgroundText("A lone terminal flickers in one corner.", 50, 150, '20px Arial', '#444444');
+    scene4.addBackgroundText("DATA LOG ZXA-487", 400, 300, 'italic 18px Courier New', '#555555', 'center');
+    // Entry points for Scene 4 will be added by the hotspots leading to it.
+    // e.g., scene4.addEntryPoint('entryFromS3_archive', ...) was done with S3-S4 door.
+    gameScenes['scene4_id'] = scene4;
+
+    // --- SCENE 4 Content (Hotspots) ---
+    scene4.bugs = []; scene4.hotspots = []; // Initialize arrays for Scene 4
+
+    // Create S4-S3 Door (Archive to Scene 3 - Unlocked)
+    // Entry point in S3 for this return path was: scene3.addEntryPoint('entryFromS4_archive', canvas.width - INVENTORY_WIDTH - 70 - 30, canvas.height / 2 + 50);
+    const navHotspot_s4_to_s3 = new Hotspot(
+        10, canvas.height / 2, 60, 50, // Positioned left-middle in Scene 4
+        function() { goToScene('scene3_id', 'entryFromS4_archive'); }, // Uses entry point defined in Scene 3 setup
+        "Door to Scene 3",
+        null, null, null, 'door', null,
+        "A door leading back to Scene 3."
+    );
+    scene4.addHotspot(navHotspot_s4_to_s3);
+
+    // Create S4-S1 Door (Archive to Scene 1 - Unlocked)
+    // Entry point in S1 for this return path is 'entryFromS4_archive_return'
+    const navHotspot_s4_to_s1 = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2, 60, 50, // Positioned right-middle in Scene 4
+        function() { goToScene('scene1_id', 'entryFromS4_archive_return'); },
+        "Door to Mainframe Sector", // Name for Scene 1
+        null, null, null, 'door', null,
+        "A door leading back to the Mainframe Sector (Scene 1)."
+    );
+    scene4.addHotspot(navHotspot_s4_to_s1);
+
+    // Add Golden Key to Scene 4's bug list (for consistency)
+    if (goldenKey) scene4.addBug(goldenKey);
+
+    // Create Chest Hotspot in Scene 4
+    const hs_archive_chest = new Hotspot(
+        250, 280, 70, 50, // x, y, width, height - Positioned in Scene 4
+        function() { // onClickAction
+            findBugAction(goldenKey);
+            latestLogMessage = "You open the ornate chest and find a Golden Key!";
+            // 'this' will not refer to hs_archive_chest here. Need to reference directly.
+            hs_archive_chest.isEnabled = false;
+            hs_archive_chest.exploreText = "An empty, open ornate chest.";
+        },
+        "Ornate Chest", // name
+        null, // requiredItemName - chest is not locked
+        null, // onUseItemSuccessAction
+        null, // onUseItemFailureAction
+        'bugStrongbox', // iconType - can reuse, or make a new 'chest' icon
+        goldenKey, // associatedBug - can link the key for potential visual hints
+        "An ornate chest sits in the corner. It doesn't appear to be locked." // exploreText
+    );
+    scene4.addHotspot(hs_archive_chest);
+
+
     // --- SCENE 1 Content ---
     scene1.bugs = []; scene1.hotspots = [];
     scene1.addBug(v1_s1);
     scene1.addBug(o1_s1);
     scene1.addBug(g1_s1);
+    if (rustyKey) scene1.addBug(rustyKey); // Add rustyKey to scene's bug list for reference
+
     const hs_v1_s1 = new Hotspot(50, 160, 100, 50, function() { findBugAction(v1_s1); }, "HS_Find_V1_S1", null, null, null, 'bugStrongbox', v1_s1);
     const hs_o1_s1 = new Hotspot(50, 210, 100, 50, function() { findBugAction(o1_s1); }, "HS_Find_O1_S1", null, null, null, 'bugStrongbox', o1_s1);
     scene1.addHotspot(hs_v1_s1);
@@ -492,40 +556,82 @@ function initGame() {
         'bugStrongbox', g1_s1);
     scene1.addHotspot(hs_puzzle_for_g1);
 
-    // Define the door from Scene 1 to Scene 2 (now locked)
+    // Hotspot to find the Rusty Key in Scene 1
+    const hs_find_rusty_key = new Hotspot(
+        200, 100, 50, 40, // x, y, width, height - Position it somewhere visible in Scene 1
+        function() { // onClickAction
+            findBugAction(rustyKey); // Assumes rustyKey is defined in the scope of initGame
+            latestLogMessage = "You found an Old Rusty Key!";
+            this.isEnabled = false; // Disable hotspot after key is taken
+            this.exploreText = "An empty spot where a key used to be.";
+            // No 'this' context issue here if Hotspot class calls onClickAction with .call(this) or similar.
+            // For safety, if 'this' is not the hotspot, we'd reference hs_find_rusty_key directly.
+            // Let's assume Hotspot class handles 'this' correctly for its own actions.
+            // Correction: Hotspot class does NOT bind 'this' for these simple function callbacks.
+            // We must refer to hs_find_rusty_key directly.
+            hs_find_rusty_key.isEnabled = false;
+            hs_find_rusty_key.exploreText = "An empty spot where a key used to be.";
+        },
+        "Old Key", // name
+        null, // requiredItemName
+        null, // onUseItemSuccessAction
+        null, // onUseItemFailureAction
+        'debugRect', // iconType - using debugRect for now, can be a specific key icon later
+        rustyKey, // associatedBug - link the key item for potential visual cues if iconType supported it
+        "A small, old rusty key lies here, glinting faintly." // exploreText
+    );
+    scene1.addHotspot(hs_find_rusty_key);
+
+    // Define the door from Scene 1 to Scene 2 (now UNLOCKED)
     const navHotspot_s1_to_s2 = new Hotspot(
         canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50, // x, y, width, height
-        function() { // onClickAction: navigate if unlocked
-            // This action is called by Hotspot.trigger if requiredItemName is null,
-            // OR by the onUseItemSuccessAction after unlocking.
+        function() { // onClickAction: navigate
             goToScene('scene2_id', 'entryFromS1');
         },
         "Door to Scene 2", // name
-        "Rusty Key", // requiredItemName - initially locked, requires "Rusty Key"
-        function() { // onUseItemSuccessAction - when Rusty Key is used successfully
-            latestLogMessage = "The Rusty Key turns the lock! The door to Scene 2 is now open.";
-            navHotspot_s1_to_s2.requiredItemName = null; // Unlock the door by referencing the instance
-            navHotspot_s1_to_s2.exploreText = "An unlocked door leading to Scene 2."; // Update explore text
-            // Automatically go through the door after unlocking
-            if(typeof navHotspot_s1_to_s2.onClickAction === 'function') {
-                navHotspot_s1_to_s2.onClickAction();
+        null, // requiredItemName - null means unlocked
+        null, // onUseItemSuccessAction - not needed for an unlocked door
+        null, // onUseItemFailureAction - not needed for an unlocked door
+        'door', // iconType
+        null, // associatedBug
+        "A door leading to Scene 2." // exploreText
+    );
+    scene1.addHotspot(navHotspot_s1_to_s2);
+
+    // Create S1-S4 Door (Scene 1 to Archive - Locked)
+    scene4.addEntryPoint('entryFromS1_archive', canvas.width - INVENTORY_WIDTH - 70 - 30, canvas.height / 2); // Entry point in S4 (e.g., right side)
+    scene1.addEntryPoint('entryFromS4_archive_return', 100, canvas.height - 80); // Entry point in S1 for return from S4
+
+    const navHotspot_s1_to_s4 = new Hotspot(
+        100, canvas.height - 80, 80, 50, // Positioned somewhere in Scene 1, e.g., lower-left
+        function() { // onClickAction: navigate if unlocked
+            goToScene('scene4_id', 'entryFromS1_archive');
+        },
+        "Heavy Door to Archive", // name
+        "Rusty Key", // requiredItemName
+        function() { // onUseItemSuccessAction
+            latestLogMessage = "The Rusty Key unlocks the heavy door to The Archive!";
+            navHotspot_s1_to_s4.requiredItemName = null;
+            navHotspot_s1_to_s4.exploreText = "An unlocked heavy door to The Archive.";
+            if(typeof navHotspot_s1_to_s4.onClickAction === 'function') {
+                navHotspot_s1_to_s4.onClickAction();
             }
         },
         function(selectedItem, failureReason) { // onUseItemFailureAction
-            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
-                latestLogMessage = "Select the Rusty Key, click 'Use Item', then click the door.";
+             if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
+                latestLogMessage = "Select the Rusty Key, click 'Use Item', then click the heavy door.";
             } else if (selectedItem) {
-                latestLogMessage = `The ${selectedItem.name} doesn't fit this lock.`;
+                latestLogMessage = `The ${selectedItem.name} doesn't fit this heavy lock.`;
             } else {
-                 // This path is less likely now given Hotspot.trigger's mode checks
-                latestLogMessage = "This door is locked. It seems to need a key.";
+                latestLogMessage = "This heavy door is securely locked.";
             }
         },
         'door', // iconType
         null, // associatedBug
-        "A sturdy door, currently locked. It leads to what you assume is Scene 2." // exploreText
+        "A heavy, reinforced door. It's securely locked and marked 'Archives - Restricted'." // exploreText
     );
-    scene1.addHotspot(navHotspot_s1_to_s2);
+    scene1.addHotspot(navHotspot_s1_to_s4);
+
 
     // --- SCENE 2 Content ---
     scene2.bugs = []; scene2.hotspots = [];
@@ -554,6 +660,22 @@ function initGame() {
     scene3.addHotspot(hs_r2_s3_hotspot);
     scene3.addHotspot(hs_g2_s3_hotspot);
     scene3.addHotspot(hs_vio2_s3);
+    // Note: The navHotspot_s3_to_s2 was already defined earlier in this scene's content.
+
+    // Add S3-S4 Door (Unlocked) to Scene 3
+    scene4.addEntryPoint('entryFromS3_archive', 10 + (30/2), canvas.height / 2); // Entry point in S4 when coming from S3
+    const navHotspot_s3_to_s4 = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 + 60, 60, 50, // Positioned lower right in Scene 3
+        function() { goToScene('scene4_id', 'entryFromS3_archive'); },
+        "Door to The Archive", // Name
+        null, // requiredItemName - unlocked
+        null, // onUseItemSuccessAction
+        null, // onUseItemFailureAction
+        'door', // iconType
+        null, // associatedBug
+        "A plain door, labeled 'Archive Access'." // exploreText
+    );
+    scene3.addHotspot(navHotspot_s3_to_s4);
 
     // Add the new "Ancient Cache" strongbox to Scene 3
     const ancientCache = new Hotspot(
