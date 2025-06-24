@@ -400,6 +400,7 @@ function initGame() {
     // 1. Declare bug variables (already global or higher scope in this file)
     // let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
     // let vio1_s2, vio2_s3;
+    let rustyKey; // Declare key here to be accessible for adding to inventory & hotspot def
 
     // 2. Instantiate all Bug objects
     v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1", false, false, '', '',
@@ -420,6 +421,10 @@ function initGame() {
     vio2_s3 = new Bug(300, 150, '#8A2BE2', pointsViolet, VIOLET_FRAGMENT_BETA_NAME, false, false, '', '',
                     "Another piece of the violet puzzle. This one resonates with a slightly different frequency.",
                     "It seems to yearn for its counterpart.");
+
+    rustyKey = new Bug(0, 0, '#A0A0A0', 0, "Rusty Key", true, false, '', '', // x,y,color,pts,name,found,isReadable,msgTitle,msgContent
+                     "An old, very rusty key. It looks like it might fit a simple lock.", ""); // description, combineHint
+    foundBugsInventory.push(rustyKey); // Add to inventory for testing
 
     // Scene Setup
     const scene1 = new Scene('scene1_id', '#E0E0E0');
@@ -486,8 +491,40 @@ function initGame() {
         },
         'bugStrongbox', g1_s1);
     scene1.addHotspot(hs_puzzle_for_g1);
-    const navHotspot_s1_to_s2 = new Hotspot(canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50,
-        function() { goToScene('scene2_id', 'entryFromS1'); }, "NAV_S1_to_S2", null, null, null, 'door', null);
+
+    // Define the door from Scene 1 to Scene 2 (now locked)
+    const navHotspot_s1_to_s2 = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50, // x, y, width, height
+        function() { // onClickAction: navigate if unlocked
+            // This action is called by Hotspot.trigger if requiredItemName is null,
+            // OR by the onUseItemSuccessAction after unlocking.
+            goToScene('scene2_id', 'entryFromS1');
+        },
+        "Door to Scene 2", // name
+        "Rusty Key", // requiredItemName - initially locked, requires "Rusty Key"
+        function() { // onUseItemSuccessAction - when Rusty Key is used successfully
+            latestLogMessage = "The Rusty Key turns the lock! The door to Scene 2 is now open.";
+            navHotspot_s1_to_s2.requiredItemName = null; // Unlock the door by referencing the instance
+            navHotspot_s1_to_s2.exploreText = "An unlocked door leading to Scene 2."; // Update explore text
+            // Automatically go through the door after unlocking
+            if(typeof navHotspot_s1_to_s2.onClickAction === 'function') {
+                navHotspot_s1_to_s2.onClickAction();
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
+                latestLogMessage = "Select the Rusty Key, click 'Use Item', then click the door.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} doesn't fit this lock.`;
+            } else {
+                 // This path is less likely now given Hotspot.trigger's mode checks
+                latestLogMessage = "This door is locked. It seems to need a key.";
+            }
+        },
+        'door', // iconType
+        null, // associatedBug
+        "A sturdy door, currently locked. It leads to what you assume is Scene 2." // exploreText
+    );
     scene1.addHotspot(navHotspot_s1_to_s2);
 
     // --- SCENE 2 Content ---
