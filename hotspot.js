@@ -342,18 +342,12 @@ class Hotspot {
             ctx.strokeStyle = 'black';
             ctx.strokeRect(iconX + iconWidth * 0.2, iconY, iconWidth * 0.6, iconHeight);
         } else if (this.iconType === 'impassableWallSegment') {
-            ctx.fillStyle = '#4A4A4A'; // Dark gray for a solid wall appearance
+            console.log(`Drawing impassableWallSegment: ${this.name} at ${iconX},${iconY} w:${iconWidth}h:${iconHeight} (isEnabled: ${this.isEnabled})`);
+            ctx.fillStyle = 'red'; // Bright red for testing
             ctx.fillRect(iconX, iconY, iconWidth, iconHeight);
-            // Optional: add some subtle texture or lines to make it look more like a wall
-            ctx.strokeStyle = '#333333';
-            ctx.lineWidth = 1;
-            // Example: Draw a few vertical lines
-            for (let i = 0; i < iconWidth; i += Math.max(5, iconWidth/4)) {
-                ctx.beginPath();
-                ctx.moveTo(iconX + i, iconY);
-                ctx.lineTo(iconX + i, iconY + iconHeight);
-                ctx.stroke();
-            }
+            ctx.strokeStyle = 'yellow'; // Bright yellow border
+            ctx.lineWidth = 2;
+            ctx.strokeRect(iconX, iconY, iconWidth, iconHeight);
         }
         ctx.restore();
     }
