@@ -200,6 +200,49 @@ class Hotspot {
             ctx.strokeStyle = '#DAA520';
             ctx.lineWidth = 1; // Thinner line for knob outline
             ctx.stroke();
+        } else if (this.iconType === 'key') {
+            // Draw a simple key shape
+            // Colors
+            const keyColor = this.associatedBug && this.associatedBug.color ? this.associatedBug.color : '#A0A0A0'; // Use bug color or default gray
+            const keyOutlineColor = '#333333'; // Dark outline
+
+            ctx.fillStyle = keyColor;
+            ctx.strokeStyle = keyOutlineColor;
+            ctx.lineWidth = 1; // Thin outline for the key
+
+            // Proportions based on iconWidth and iconHeight
+            const headRadius = Math.min(iconWidth, iconHeight) * 0.25;
+            const headCenterX = iconX + headRadius;
+            const headCenterY = iconY + headRadius;
+
+            const shaftX = iconX + headRadius * 1.8; // Start shaft slightly overlapping/touching head
+            const shaftY = iconY + headRadius - (iconHeight * 0.1); // Center shaft vertically with head
+            const shaftWidth = iconWidth * 0.5;
+            const shaftHeight = iconHeight * 0.2;
+
+            const teethWidth = iconWidth * 0.15;
+            const teethHeight = iconHeight * 0.1;
+            const tooth1X = shaftX + shaftWidth * 0.3;
+            const tooth1Y = shaftY + shaftHeight;
+            const tooth2X = shaftX + shaftWidth * 0.7;
+            const tooth2Y = shaftY + shaftHeight;
+
+            // Draw Key Head (Circle)
+            ctx.beginPath();
+            ctx.arc(headCenterX, headCenterY, headRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Draw Key Shaft (Rectangle)
+            ctx.fillRect(shaftX, shaftY, shaftWidth, shaftHeight);
+            ctx.strokeRect(shaftX, shaftY, shaftWidth, shaftHeight);
+
+            // Draw Key Teeth (Small Rectangles)
+            ctx.fillRect(tooth1X, tooth1Y, teethWidth, teethHeight);
+            ctx.strokeRect(tooth1X, tooth1Y, teethWidth, teethHeight);
+            ctx.fillRect(tooth2X, tooth2Y, teethWidth, teethHeight);
+            ctx.strokeRect(tooth2X, tooth2Y, teethWidth, teethHeight);
+
         }
         ctx.restore();
     }

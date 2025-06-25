@@ -576,7 +576,7 @@ function initGame() {
         null, // requiredItemName
         null, // onUseItemSuccessAction
         null, // onUseItemFailureAction
-        'debugRect', // iconType - using debugRect for now, can be a specific key icon later
+         'key', // iconType - using debugRect for now, can be a specific key icon later
         rustyKey, // associatedBug - link the key item for potential visual cues if iconType supported it
         "A small, old rusty key lies here, glinting faintly." // exploreText
     );
