@@ -7,7 +7,8 @@ class Hotspot {
                 onUseItemFailureAction = null,
                 iconType = 'debugRect', // Default to debugRect for existing/unspecified
                 associatedBug = null,
-                exploreText = `This is a ${name || 'hotspot'}. It looks interactive.` // Default explore text
+                exploreText = `This is a ${name || 'hotspot'}. It looks interactive.`, // Default explore text
+                isBreached = false // New property for breachable walls
                 ) {
         this.x = x;
         this.y = y;
@@ -24,6 +25,7 @@ class Hotspot {
         this.iconType = iconType;
         this.associatedBug = associatedBug;
         this.exploreText = exploreText; // Store the explore text
+        this.isBreached = isBreached; // Initialize isBreached status
     }
 
     isClicked(mouseX, mouseY) {
@@ -65,9 +67,22 @@ class Hotspot {
             }
 
             // Now itemToUse is guaranteed to be the single selected item.
-            if (itemToUse.name === this.requiredItemName) {
+            let itemIsCorrect = false;
+            if (Array.isArray(this.requiredItemName)) {
+                // If requiredItemName is an array, check if itemToUse.name is in the array
+                if (this.requiredItemName.includes(itemToUse.name)) {
+                    itemIsCorrect = true;
+                }
+            } else {
+                // If requiredItemName is a single string, compare directly
+                if (itemToUse.name === this.requiredItemName) {
+                    itemIsCorrect = true;
+                }
+            }
+
+            if (itemIsCorrect) {
                 if (typeof this.onUseItemSuccessAction === 'function') {
-                    this.onUseItemSuccessAction();
+                    this.onUseItemSuccessAction(); // Pass itemToUse if needed by action
                 } else {
                     const message = `${this.name}: Used ${itemToUse.name} successfully, but no specific success action defined.`;
                     setMessageCallback(message);
@@ -75,11 +90,10 @@ class Hotspot {
                 }
             } else { // Wrong item selected for use
                 if (typeof this.onUseItemFailureAction === 'function') {
-                    this.onUseItemFailureAction(itemToUse);
+                    this.onUseItemFailureAction(itemToUse); // Pass itemToUse for context
                 } else {
                      setMessageCallback(`Cannot use ${itemToUse.name} on ${this.name}. It's not the right item.`);
                 }
-                // No return here, failure action might set message. If not, default message above is set.
             }
         } else if (typeof this.onClickAction === 'function') {
             this.onClickAction();
@@ -243,6 +257,81 @@ class Hotspot {
             ctx.fillRect(tooth2X, tooth2Y, teethWidth, teethHeight);
             ctx.strokeRect(tooth2X, tooth2Y, teethWidth, teethHeight);
 
+        } else if (this.iconType === 'crackedWall') {
+            // Wall background
+            ctx.fillStyle = '#B0B0B0'; // Light gray for wall
+            ctx.fillRect(iconX, iconY, iconWidth, iconHeight);
+            // Cracks
+            ctx.strokeStyle = '#555555'; // Dark gray for cracks
+            ctx.lineWidth = Math.max(1, Math.min(iconWidth, iconHeight) * 0.05); // Responsive crack size
+            ctx.beginPath();
+            ctx.moveTo(iconX + iconWidth * 0.2, iconY + iconHeight * 0.2);
+            ctx.lineTo(iconX + iconWidth * 0.8, iconY + iconHeight * 0.8);
+            ctx.moveTo(iconX + iconWidth * 0.8, iconY + iconHeight * 0.2);
+            ctx.lineTo(iconX + iconWidth * 0.5, iconY + iconHeight * 0.5);
+            ctx.lineTo(iconX + iconWidth * 0.6, iconY + iconHeight * 0.9);
+            ctx.stroke();
+        } else if (this.iconType === 'breachedWallOpening') {
+            // Outer wall remnants
+            ctx.fillStyle = '#B0B0B0';
+            ctx.fillRect(iconX, iconY, iconWidth, iconHeight * 0.2); // Top remnant
+            ctx.fillRect(iconX, iconY + iconHeight * 0.8, iconWidth, iconHeight * 0.2); // Bottom remnant
+            ctx.fillRect(iconX, iconY + iconHeight * 0.2, iconWidth * 0.2, iconHeight * 0.6); // Left remnant
+            ctx.fillRect(iconX + iconWidth * 0.8, iconY + iconHeight * 0.2, iconWidth * 0.2, iconHeight * 0.6); // Right remnant
+            // Dark opening
+            ctx.fillStyle = '#333333'; // Dark gray for opening
+            ctx.fillRect(iconX + iconWidth * 0.2, iconY + iconHeight * 0.2, iconWidth * 0.6, iconHeight * 0.6);
+            // Jagged edges for opening (subtle)
+            ctx.strokeStyle = '#555555';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(iconX + iconWidth * 0.2, iconY + iconHeight * 0.2);
+            ctx.lineTo(iconX + iconWidth * 0.15, iconY + iconHeight * 0.25);
+            ctx.lineTo(iconX + iconWidth * 0.2, iconY + iconHeight * 0.3);
+            // ... more jagged lines around the opening border
+            ctx.stroke();
+        } else if (this.iconType === 'hammerIcon') {
+            ctx.fillStyle = 'darkgray'; // Handle
+            ctx.fillRect(iconX + iconWidth * 0.4, iconY + iconHeight * 0.3, iconWidth * 0.2, iconHeight * 0.7);
+            ctx.fillStyle = 'gray'; // Head
+            ctx.fillRect(iconX + iconWidth * 0.2, iconY, iconWidth * 0.6, iconHeight * 0.4);
+            ctx.strokeStyle = 'black';
+            ctx.strokeRect(iconX + iconWidth * 0.4, iconY + iconHeight * 0.3, iconWidth * 0.2, iconHeight * 0.7);
+            ctx.strokeRect(iconX + iconWidth * 0.2, iconY, iconWidth * 0.6, iconHeight * 0.4);
+        } else if (this.iconType === 'crowbarIcon') {
+            ctx.fillStyle = 'dimgray';
+            ctx.fillRect(iconX + iconWidth * 0.45, iconY, iconWidth * 0.1, iconHeight * 0.9); // Shaft
+            ctx.beginPath(); // Hook
+            ctx.moveTo(iconX + iconWidth * 0.5, iconY + iconHeight * 0.9);
+            ctx.lineTo(iconX + iconWidth * 0.3, iconY + iconHeight);
+            ctx.strokeStyle = 'dimgray';
+            ctx.lineWidth = Math.max(2, iconWidth * 0.1);
+            ctx.stroke();
+        } else if (this.iconType === 'gasBottleIcon') {
+            ctx.fillStyle = 'firebrick';
+            ctx.fillRect(iconX + iconWidth * 0.2, iconY + iconHeight * 0.2, iconWidth * 0.6, iconHeight * 0.8); // Body
+            ctx.fillStyle = 'gray';
+            ctx.fillRect(iconX + iconWidth * 0.4, iconY, iconWidth * 0.2, iconHeight * 0.2); // Nozzle
+            ctx.strokeStyle = 'black';
+            ctx.strokeRect(iconX + iconWidth * 0.2, iconY + iconHeight * 0.2, iconWidth * 0.6, iconHeight * 0.8);
+        } else if (this.iconType === 'wickIcon') {
+            ctx.strokeStyle = 'ivory';
+            ctx.lineWidth = Math.max(2, iconHeight * 0.15);
+            ctx.beginPath();
+            ctx.moveTo(iconX + iconWidth * 0.2, iconY + iconHeight * 0.8);
+            ctx.bezierCurveTo(
+                iconX + iconWidth * 0.4, iconY + iconHeight * 0.2, // control point 1
+                iconX + iconWidth * 0.6, iconY + iconHeight * 1.2, // control point 2 (exaggerated for curve)
+                iconX + iconWidth * 0.8, iconY + iconHeight * 0.7  // end point
+            );
+            ctx.stroke();
+        } else if (this.iconType === 'lighterIcon') {
+            ctx.fillStyle = 'orangered'; // Lighter body
+            ctx.fillRect(iconX + iconWidth * 0.2, iconY, iconWidth * 0.6, iconHeight);
+            ctx.fillStyle = 'silver'; // Flint wheel part
+            ctx.fillRect(iconX + iconWidth * 0.3, iconY, iconWidth * 0.4, iconHeight * 0.2);
+            ctx.strokeStyle = 'black';
+            ctx.strokeRect(iconX + iconWidth * 0.2, iconY, iconWidth * 0.6, iconHeight);
         }
         ctx.restore();
     }

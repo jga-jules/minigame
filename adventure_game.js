@@ -393,6 +393,12 @@ function initGame() {
     const VIOLET_FRAGMENT_BETA_NAME = "Violet Fragment Beta";
     const SHINING_VIOLET_GEM_NAME = "Shining Violet Gem";
 
+    // Item Name Constants for Breachable Wall tools
+    const NAME_HAMMER = "Hammer";
+    const NAME_CROWBAR = "Crowbar";
+    const NAME_EXPLOSIVE_DEVICE = "Explosive Device";
+
+
     // Points constants
     const pointsRed = 40, pointsGray = 30, pointsOrange = 20, pointsGreen = 10;
     const pointsViolet = 0;
@@ -400,10 +406,11 @@ function initGame() {
     // 1. Declare bug variables (already global or higher scope in this file)
     // let v1_s1, o1_s1, g1_s1, r1_s2, v2_s2, r2_s3, g2_s3;
     // let vio1_s2, vio2_s3;
-    let rustyKey;
-    let goldenKey; // Declare Golden Key
+    let rustyKey, goldenKey;
+    let hammer, crowbar, gasBottle, cottonWick, lighter, primedGasBottle, explosiveDevice; // New utility items
 
     // 2. Instantiate all Bug objects
+    // Existing items
     v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1", false, false, '', '',
                   "A common, yet elusive green data-bug. Often found nesting in older code structures.");
     o1_s1 = new Bug(100, 230, 'orange', pointsOrange, "Orange Bug O1"); // No specific description/hint yet
@@ -430,6 +437,22 @@ function initGame() {
     goldenKey = new Bug(0, 0, 'gold', 10, "Golden Key", false, false, '', '', // x,y,color,pts,name,found,isReadable,msgTitle,msgContent
                       "A shiny golden key. It feels important and fits no ordinary lock.", ""); // description, combineHint
 
+    // New Utility Items
+    hammer = new Bug(0,0, 'dimgray', 0, "Hammer", false, false, '', '',
+                   "A sturdy hammer. Might be useful for forceful persuasion of inanimate objects.", "");
+    crowbar = new Bug(0,0, 'darkslategray', 0, "Crowbar", false, false, '', '',
+                    "A long crowbar. Good for prying things open or apart.", "");
+    gasBottle = new Bug(0,0, 'firebrick', 0, "Gas Bottle", false, false, '', '',
+                      "A small bottle containing flammable gas.", "Seems like it could be combined with something to make it more... effective.");
+    cottonWick = new Bug(0,0, 'ivory', 0, "Cotton Wick", false, false, '', '',
+                       "A length of cotton wick. Looks absorbent and flammable.", "Could be used with a flammable substance.");
+    lighter = new Bug(0,0, 'orangered', 0, "Lighter", false, false, '', '',
+                      "A simple lighter. Produces a small flame.", "Useful for igniting things.");
+    primedGasBottle = new Bug(0,0, 'crimson', 0, "Primed Gas Bottle", false, false, '', '',
+                            "A gas bottle with a wick inserted. Looks ready to be lit.", "Just needs a spark!");
+    explosiveDevice = new Bug(0,0, 'darkred', 0, "Explosive Device", false, false, '', '',
+                            "A makeshift explosive. Handle with extreme care!", "This should be powerful enough to clear rubble... or make more.");
+
     // Scene Setup
     const scene1 = new Scene('scene1_id', '#E0E0E0');
     scene1.addEntryPoint('entryFromS2', 550 - (30/2), canvas.height / 2);
@@ -448,14 +471,25 @@ function initGame() {
     const scene2 = new Scene('scene2_id', '#D0E0D0');
     scene2.addEntryPoint('entryFromS1', 10 + (30/2), canvas.height / 2);
     scene2.addEntryPoint('entryFromS3', 550 - (30/2), canvas.height / 2);
+    scene2.addEntryPoint('entryFromS3_hidden', 350, 100); // New entry point for hidden area
     scene2.addBackgroundText("#include <header_file.h>", 50, 100, 'bold 40px monospace', '#224422');
     scene2.addBackgroundText("namespace Utilities {", 70, 150, '30px monospace', '#224422');
     scene2.addBackgroundText("  // Checksum function?", 90, 200, '30px monospace', '#224422');
     scene2.addBackgroundText("}", 70, 250, '30px monospace', '#224422');
+    // Text for the new hidden area in Scene 2
+    scene2.addBackgroundText("// SECURE SUBROUTINE //", 280, 80, 'italic 18px monospace', '#AA0000');
+    scene2.addBackgroundText("/* Access Restricted */", 300, 120, '16px monospace', '#AA0000');
     gameScenes['scene2_id'] = scene2;
 
     const scene3 = new Scene('scene3_id', '#D0D0E0');
     scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2);
+    // Entry point for returning from Scene 4 via breached wall
+    // Should align with where hs_breach_s3_to_s4 is located.
+    // hs_breach_s3_to_s4 is at: canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 + 60
+    scene3.addEntryPoint('entryFromS4_breach_return', canvas.width - INVENTORY_WIDTH - 70 + 30, canvas.height / 2 + 60 + 25); // Adjusted for center
+    // Entry point for returning from Scene 2's hidden alcove
+    // Should align with hs_breach_s3_to_s2_hidden (50,100 in S3)
+    scene3.addEntryPoint('entryFromS2_hidden_return', 50 + 25, 100 + 35); // Adjusted for center of hotspot
     scene3.addBackgroundText("struct LogFile {", 50, 100, 'bold 36px monospace', '#222244');
     scene3.addBackgroundText("  char timestamp[32];", 70, 150, '28px monospace', '#222244');
     scene3.addBackgroundText("  char message[256];", 70, 200, '28px monospace', '#222244');
@@ -474,16 +508,37 @@ function initGame() {
     // --- SCENE 4 Content (Hotspots) ---
     scene4.bugs = []; scene4.hotspots = []; // Initialize arrays for Scene 4
 
-    // Create S4-S3 Door (Archive to Scene 3 - Unlocked)
-    // Entry point in S3 for this return path was: scene3.addEntryPoint('entryFromS4_archive', canvas.width - INVENTORY_WIDTH - 70 - 30, canvas.height / 2 + 50);
-    const navHotspot_s4_to_s3 = new Hotspot(
-        10, canvas.height / 2, 60, 50, // Positioned left-middle in Scene 4
-        function() { goToScene('scene3_id', 'entryFromS4_archive'); }, // Uses entry point defined in Scene 3 setup
-        "Door to Scene 3",
-        null, null, null, 'door', null,
-        "A door leading back to Scene 3."
+    // Return Breached Wall Hotspot from Scene 4 to Scene 3
+    // Name must be unique and findable for enabling it from Scene 3's breach action.
+    const RETURN_BREACH_S4_TO_S3_NAME = "ReturnBreach_S4_to_S3"; // Used in hs_breach_s3_to_s4's success action
+    const hs_return_breach_s4_to_s3 = new Hotspot(
+        10, canvas.height / 2, 60, 50, // Positioned where old S4->S3 door was.
+        function() { // onClickAction
+            if (this.isEnabled) {
+                goToScene('scene3_id', 'entryFromS4_breach_return');
+            } else {
+                latestLogMessage = "A solid wall. No obvious way through from here.";
+            }
+        },
+        RETURN_BREACH_S4_TO_S3_NAME,
+        null, null, null,
+        'debugRect', // Initial icon, changed upon enabling
+        null,
+        "The wall seems solid here.", // Initial explore text
+        false, // isEnabled: initially false
+        true   // isBreached: true (it's an opening once enabled)
     );
-    scene4.addHotspot(navHotspot_s4_to_s3);
+    scene4.addHotspot(hs_return_breach_s4_to_s3);
+
+    // Old S4-S3 Door - This should be removed as its functionality is replaced by the breachable wall.
+    // const navHotspot_s4_to_s3 = new Hotspot(
+    //     10, canvas.height / 2, 60, 50,
+    //     function() { goToScene('scene3_id', 'entryFromS4_archive'); },
+    //     "Door to Scene 3", // This name might conflict if not unique, but it's being removed.
+    //     null, null, null, 'door', null,
+    //     "A door leading back to Scene 3."
+    // );
+    // scene4.addHotspot(navHotspot_s4_to_s3); // Ensure this is not added.
 
     // Create S4-S1 Door (Archive to Scene 1 - Unlocked)
     // Entry point in S1 for this return path is 'entryFromS4_archive_return'
@@ -582,6 +637,21 @@ function initGame() {
     );
     scene1.addHotspot(hs_find_rusty_key);
 
+    // Hotspot for Cotton Wick in Scene 1
+    if (cottonWick) scene1.addBug(cottonWick); // Add to scene's bug list for reference
+    const hs_find_cotton_wick = new Hotspot(
+        300, 250, 40, 30, // x, y, width, height
+        function() {
+            findBugAction(cottonWick);
+            latestLogMessage = "You found a Cotton Wick!";
+            hs_find_cotton_wick.isEnabled = false;
+            hs_find_cotton_wick.exploreText = "An empty nook where some wick was.";
+        },
+        "Cotton Wick Spot", null, null, null, 'wickIcon', cottonWick,
+        "A piece of soft cotton wick is tucked away here."
+    );
+    scene1.addHotspot(hs_find_cotton_wick);
+
     // Define the door from Scene 1 to Scene 2 (now UNLOCKED)
     const navHotspot_s1_to_s2 = new Hotspot(
         canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50, // x, y, width, height
@@ -644,12 +714,51 @@ function initGame() {
     scene2.addHotspot(hs_r1_s2_hotspot);
     scene2.addHotspot(hs_v2_s2_hotspot);
     scene2.addHotspot(hs_vio1_s2);
+
+    // Hotspot for Lighter in Scene 2
+    if (lighter) scene2.addBug(lighter); // Add to scene's bug list
+    const hs_find_lighter = new Hotspot(
+        200, 280, 30, 40, // x, y, width, height
+        function() {
+            findBugAction(lighter);
+            latestLogMessage = "You picked up a Lighter.";
+            hs_find_lighter.isEnabled = false;
+            hs_find_lighter.exploreText = "The spot where a lighter used to be.";
+        },
+        "Discarded Lighter", null, null, null, 'lighterIcon', lighter,
+        "A discarded lighter lies in the dust."
+    );
+    scene2.addHotspot(hs_find_lighter);
+
+    // Return Breached Wall Hotspot from Scene 2 (Hidden Alcove) to Scene 3
+    const RETURN_BREACH_S2_TO_S3_NAME = "ReturnBreach_S2_Hidden_to_S3";
+    const entryPointS2Hidden = scene2.getEntryPoint('entryFromS3_hidden'); // Get coords for positioning
+    const hs_return_breach_s2_to_s3 = new Hotspot(
+        entryPointS2Hidden.x - 25, entryPointS2Hidden.y - 25, 50, 50, // Centered around entry point
+        function() { // onClickAction
+            if (this.isEnabled) {
+                goToScene('scene3_id', 'entryFromS2_hidden_return');
+            } else {
+                latestLogMessage = "The wall here is smooth and unbroken."; // Should not be clickable if disabled
+            }
+        },
+        RETURN_BREACH_S2_TO_S3_NAME, // name
+        null, null, null,
+        'debugRect', // iconType - will be 'breachedWallOpening'
+        null,
+        "A solid wall section.", // exploreText - will be updated
+        false, // isEnabled initially false
+        true   // isBreached conceptually true
+    );
+    scene2.addHotspot(hs_return_breach_s2_to_s3);
+
     const navHotspot_s2_to_s1 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene1_id', 'entryFromS2'); }, "NAV_S2_to_S1", null, null, null, 'door', null);
     scene2.addHotspot(navHotspot_s2_to_s1);
     const navHotspot_s2_to_s3 = new Hotspot(canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene3_id', 'entryFromS2'); }, "NAV_S2_to_S3", null, null, null, 'door', null);
     scene2.addHotspot(navHotspot_s2_to_s3);
 
-    // --- SCENE 3 Content ---
+
+    // --- SCENE 3 Content ("Toolbox") ---
     scene3.bugs = []; scene3.hotspots = [];
     scene3.addBug(r2_s3);
     scene3.addBug(g2_s3);
@@ -660,22 +769,106 @@ function initGame() {
     scene3.addHotspot(hs_r2_s3_hotspot);
     scene3.addHotspot(hs_g2_s3_hotspot);
     scene3.addHotspot(hs_vio2_s3);
+
+    // Add utility item hotspots to Scene 3 ("Toolbox")
+    if (hammer) scene3.addBug(hammer);
+    const hs_find_hammer = new Hotspot(
+        100, 100, 50, 40, function() {
+            findBugAction(hammer); latestLogMessage = "You found a Hammer.";
+            hs_find_hammer.isEnabled = false; hs_find_hammer.exploreText = "An indentation where a hammer was.";
+        }, "Hammer Spot", null, null, null, 'hammerIcon', hammer, "A heavy hammer is propped against a console."
+    );
+    scene3.addHotspot(hs_find_hammer);
+
+    if (crowbar) scene3.addBug(crowbar);
+    const hs_find_crowbar = new Hotspot(
+        100, 150, 60, 30, function() {
+            findBugAction(crowbar); latestLogMessage = "You found a Crowbar.";
+            hs_find_crowbar.isEnabled = false; hs_find_crowbar.exploreText = "Scuff marks where a crowbar leaned.";
+        }, "Crowbar Spot", null, null, null, 'crowbarIcon', crowbar, "A crowbar leans in the corner."
+    );
+    scene3.addHotspot(hs_find_crowbar);
+
+    if (gasBottle) scene3.addBug(gasBottle);
+    const hs_find_gas_bottle = new Hotspot(
+        100, 200, 30, 40, function() {
+            findBugAction(gasBottle); latestLogMessage = "You found a Gas Bottle.";
+            hs_find_gas_bottle.isEnabled = false; hs_find_gas_bottle.exploreText = "A clean spot on a dusty shelf.";
+        }, "Gas Bottle Spot", null, null, null, 'gasBottleIcon', gasBottle, "A small gas bottle is on a shelf."
+    );
+    scene3.addHotspot(hs_find_gas_bottle);
+
+
     // Note: The navHotspot_s3_to_s2 was already defined earlier in this scene's content.
 
     // Add S3-S4 Door (Unlocked) to Scene 3
     scene4.addEntryPoint('entryFromS3_archive', 10 + (30/2), canvas.height / 2); // Entry point in S4 when coming from S3
-    const navHotspot_s3_to_s4 = new Hotspot(
-        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 + 60, 60, 50, // Positioned lower right in Scene 3
-        function() { goToScene('scene4_id', 'entryFromS3_archive'); },
-        "Door to The Archive", // Name
-        null, // requiredItemName - unlocked
-        null, // onUseItemSuccessAction
-        null, // onUseItemFailureAction
-        'door', // iconType
+    // const navHotspot_s3_to_s4 = new Hotspot( // This door will be replaced by a breachable wall
+    //     canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 + 60, 60, 50, // Positioned lower right in Scene 3
+    //     function() { goToScene('scene4_id', 'entryFromS3_archive'); },
+    //     "Door to The Archive", // Name
+    //     null, // requiredItemName - unlocked
+    //     null, // onUseItemSuccessAction
+    //     null, // onUseItemFailureAction
+    //     'door', // iconType
+    //     null, // associatedBug
+    //     "A plain door, labeled 'Archive Access'." // exploreText
+    // );
+    // scene3.addHotspot(navHotspot_s3_to_s4); // Do not add the old door
+
+    // Breachable Wall from Scene 3 to Scene 4
+    const hs_breach_s3_to_s4 = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 + 60, 60, 50, // Approx. old door location
+        function() { // onClickAction
+            if (this.isBreached) {
+                goToScene('scene4_id', 'entryFromS3_archive');
+            } else {
+                latestLogMessage = "This wall looks weak. It might be breachable with the right tool.";
+            }
+        },
+        "Weak Wall to Archive", // name
+        [NAME_HAMMER, NAME_CROWBAR, NAME_EXPLOSIVE_DEVICE], // requiredItemName (array)
+        function() { // onUseItemSuccessAction
+            let toolUsed = selectedInventoryItems[0] ? selectedInventoryItems[0].name : "a tool";
+            if (toolUsed === NAME_EXPLOSIVE_DEVICE) {
+                latestLogMessage = `The ${toolUsed} blasts a hole in the wall! You can now reach The Archive.`;
+            } else {
+                latestLogMessage = `Using the ${toolUsed}, you manage to break through the wall to The Archive!`;
+            }
+            //goToScene('scene4_id', 'entryFromS3_archive'); // Navigation now handled by onClickAction after breach
+            this.isBreached = true;
+            this.iconType = 'breachedWallOpening';
+            this.exploreText = "A gaping hole leads to The Archive. Click to enter.";
+            this.requiredItemName = null; // No longer needs an item once breached
+
+            // Enable the return hotspot in Scene 4
+            const scene4Hotspots = gameScenes['scene4_id'] ? gameScenes['scene4_id'].hotspots : [];
+            const returnHotspotS4 = scene4Hotspots.find(h => h.name === RETURN_BREACH_S4_TO_S3_NAME);
+            if (returnHotspotS4) {
+                returnHotspotS4.isEnabled = true;
+                returnHotspotS4.iconType = 'breachedWallOpening';
+                returnHotspotS4.exploreText = "The opening leads back to the Toolbox area (Scene 3). Click to return.";
+            } else {
+                console.error("Could not find return hotspot " + RETURN_BREACH_S4_TO_S3_NAME + " in Scene 4 to enable.");
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (this.isBreached) { // Should not happen if requiredItemName is nullified
+                latestLogMessage = "The way is already open."; return;
+            }
+            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
+                 latestLogMessage = "Select a single tool (Hammer, Crowbar, or Explosive Device), click 'Use Item', then click the wall.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} isn't strong enough or suitable for this wall.`;
+            } else {
+                latestLogMessage = "This wall is weak, but you need a tool to breach it.";
+            }
+        },
+        'crackedWall', // Initial iconType
         null, // associatedBug
-        "A plain door, labeled 'Archive Access'." // exploreText
+        "A structurally weak section of the wall. It looks like it could be breached." // exploreText
     );
-    scene3.addHotspot(navHotspot_s3_to_s4);
+    scene3.addHotspot(hs_breach_s3_to_s4);
 
     // Add the new "Ancient Cache" strongbox to Scene 3
     const ancientCache = new Hotspot(
@@ -715,8 +908,59 @@ function initGame() {
     );
     scene3.addHotspot(ancientCache);
 
+    // Breachable Wall from Scene 3 to Hidden part of Scene 2
+    const hs_breach_s3_to_s2_hidden = new Hotspot(
+        50, 100, 50, 70, // Position in Scene 3, e.g., left side
+        function() { // onClickAction
+            if (this.isBreached) {
+                goToScene('scene2_id', 'entryFromS3_hidden');
+            } else {
+                latestLogMessage = "This wall has some strange markings and sounds hollow.";
+            }
+        },
+        "Hollow Wall to Scene 2 Alcove", // name
+        [NAME_HAMMER, NAME_CROWBAR, NAME_EXPLOSIVE_DEVICE], // requiredItemName (array)
+        function() { // onUseItemSuccessAction
+            let toolUsed = selectedInventoryItems[0] ? selectedInventoryItems[0].name : "a tool";
+            latestLogMessage = `With the ${toolUsed}, you break into a hidden alcove in Scene 2!`;
+            //goToScene('scene2_id', 'entryFromS3_hidden'); // Navigation now handled by onClickAction
+            this.isBreached = true;
+            this.iconType = 'breachedWallOpening';
+            this.exploreText = "A newly made passage leads to a hidden alcove in Scene 2. Click to enter.";
+            this.requiredItemName = null; // No longer needs an item once breached
+
+            // Enable the return hotspot in Scene 2's hidden area
+            const scene2Hotspots = gameScenes['scene2_id'] ? gameScenes['scene2_id'].hotspots : [];
+            const returnHotspotS2 = scene2Hotspots.find(h => h.name === RETURN_BREACH_S2_TO_S3_NAME);
+            if (returnHotspotS2) {
+                returnHotspotS2.isEnabled = true;
+                returnHotspotS2.iconType = 'breachedWallOpening';
+                returnHotspotS2.exploreText = "The passage leads back to the Toolbox area (Scene 3). Click to return.";
+            } else {
+                console.error("Could not find return hotspot " + RETURN_BREACH_S2_TO_S3_NAME + " in Scene 2 to enable.");
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (this.isBreached) {
+                latestLogMessage = "The passage is already open."; return;
+            }
+            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
+                 latestLogMessage = "Select a single tool (Hammer, Crowbar, or Explosive Device), click 'Use Item', then click the wall.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} doesn't seem to affect this strange wall.`;
+            } else {
+                latestLogMessage = "This wall is definitely suspicious. A tool might reveal something.";
+            }
+        },
+        'crackedWall', // Initial iconType
+        null, // associatedBug
+        "This part of the wall sounds hollow and has unusual markings." // exploreText
+    );
+    scene3.addHotspot(hs_breach_s3_to_s2_hidden);
+
     const navHotspot_s3_to_s2 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene2_id', 'entryFromS3'); }, "NAV_S3_to_S2", null, null, null, 'door', null);
     scene3.addHotspot(navHotspot_s3_to_s2);
+
 
     // Set current scene and detective AFTER all scenes are populated
     currentScene = gameScenes['scene1_id'];
@@ -760,6 +1004,17 @@ function initGame() {
         item1Name: VIOLET_FRAGMENT_ALPHA_NAME,
         item2Name: VIOLET_FRAGMENT_BETA_NAME,
         resultItem: { name: SHINING_VIOLET_GEM_NAME, color: "magenta", points: 100 }
+    });
+    // Recipes for Explosive Device
+    itemCombinations.push({
+        item1Name: gasBottle.name, // Assuming gasBottle refers to the Bug instance
+        item2Name: cottonWick.name, // Assuming cottonWick refers to the Bug instance
+        resultItem: { name: primedGasBottle.name, color: primedGasBottle.color, points: 0 }
+    });
+    itemCombinations.push({
+        item1Name: primedGasBottle.name, // Assuming primedGasBottle refers to the Bug instance
+        item2Name: lighter.name,       // Assuming lighter refers to the Bug instance
+        resultItem: { name: explosiveDevice.name, color: explosiveDevice.color, points: 0 }
     });
     console.log("Item combination recipes initialized:", itemCombinations);
 
