@@ -105,16 +105,14 @@ class Hotspot {
     }
 
     draw(ctx) {
-        const persistentWhenDisabled = ['impassableWallSegment', 'crackedWall', 'breachedWallOpening'];
+        const persistentWhenDisabled = ['impassableWallSegment', 'crackedWall', 'breachedWallOpening', 'fireplaceIcon'];
 
         if (!this.isEnabled && !persistentWhenDisabled.includes(this.iconType)) {
-            // If it's disabled AND not a type that should persist visually, don't draw anything.
+            // If it's disabled AND not a type that should persist visually (like a collected item), don't draw anything.
             return;
         }
 
-        // If iconType is 'debugRect', it will only be drawn if isEnabled is true,
-        // because 'debugRect' is not in persistentWhenDisabled, so the check above would have made it return.
-        // However, to be explicit and keep its original conditional drawing:
+        // If iconType is 'debugRect', draw it only if isEnabled is true (as it's not persistent).
         if (this.iconType === 'debugRect') {
             if (this.isEnabled) {
                 ctx.save();
@@ -126,6 +124,7 @@ class Hotspot {
             return;
         }
 
+        // For other icon types (including persistent ones that might be disabled), proceed to draw.
         const margin = 3;
         const iconX = this.x + margin;
         const iconY = this.y + margin;
@@ -134,8 +133,7 @@ class Hotspot {
 
         if (iconWidth <= 0 || iconHeight <= 0) return;
 
-        // NEW DEBUG LINE:
-        console.log(`Hotspot drawing attempt: ${this.name}, Type: ${this.iconType}, Enabled: ${this.isEnabled}, X: ${this.x}, Y: ${this.y}, W: ${this.width}, H: ${this.height}, iconW: ${iconWidth}, iconH: ${iconHeight}`);
+        // console.log(`Hotspot drawing attempt: ${this.name}, Type: ${this.iconType}, Enabled: ${this.isEnabled}, X: ${this.x}, Y: ${this.y}, W: ${this.width}, H: ${this.height}, iconW: ${iconWidth}, iconH: ${iconHeight}`);
 
         ctx.save();
         ctx.lineWidth = 2; // Default lineWidth for icons
@@ -351,6 +349,34 @@ class Hotspot {
             ctx.strokeStyle = 'yellow'; // Bright yellow border
             ctx.lineWidth = 2;
             ctx.strokeRect(iconX, iconY, iconWidth, iconHeight);
+        } else if (this.iconType === 'fireplaceIcon') {
+            // Simple fireplace icon
+            const baseColor = '#5D4037'; // SaddleBrown or similar for bricks/stone
+            const fireboxColor = '#222222'; // Dark for firebox opening
+
+            // Mantle/Surround (a bit larger than the icon box to give it presence)
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(iconX - 2, iconY - 2, iconWidth + 4, iconHeight + 4); // Slightly larger base
+
+            // Firebox opening
+            const fireboxMarginX = iconWidth * 0.2;
+            const fireboxMarginY = iconHeight * 0.15;
+            ctx.fillStyle = fireboxColor;
+            ctx.fillRect(
+                iconX + fireboxMarginX,
+                iconY + fireboxMarginY,
+                iconWidth - 2 * fireboxMarginX,
+                iconHeight - fireboxMarginY
+            );
+
+            // Optional: A hint of a log or grate
+            ctx.strokeStyle = '#444444';
+            ctx.lineWidth = Math.max(1, iconWidth * 0.05);
+            const logY = iconY + iconHeight * 0.75;
+            ctx.beginPath();
+            ctx.moveTo(iconX + fireboxMarginX * 1.5, logY);
+            ctx.lineTo(iconX + iconWidth - fireboxMarginX * 1.5, logY);
+            ctx.stroke();
         }
         ctx.restore();
     }
