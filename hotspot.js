@@ -105,15 +105,24 @@ class Hotspot {
     }
 
     draw(ctx) {
-        if (!this.isEnabled) return;
+        const persistentWhenDisabled = ['impassableWallSegment', 'crackedWall', 'breachedWallOpening'];
 
-        // If iconType is 'debugRect', draw it using the full hotspot area and return.
+        if (!this.isEnabled && !persistentWhenDisabled.includes(this.iconType)) {
+            // If it's disabled AND not a type that should persist visually, don't draw anything.
+            return;
+        }
+
+        // If iconType is 'debugRect', it will only be drawn if isEnabled is true,
+        // because 'debugRect' is not in persistentWhenDisabled, so the check above would have made it return.
+        // However, to be explicit and keep its original conditional drawing:
         if (this.iconType === 'debugRect') {
-            ctx.save();
-            ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(this.x, this.y, this.width, this.height);
-            ctx.restore();
+            if (this.isEnabled) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                ctx.restore();
+            }
             return;
         }
 
@@ -332,6 +341,19 @@ class Hotspot {
             ctx.fillRect(iconX + iconWidth * 0.3, iconY, iconWidth * 0.4, iconHeight * 0.2);
             ctx.strokeStyle = 'black';
             ctx.strokeRect(iconX + iconWidth * 0.2, iconY, iconWidth * 0.6, iconHeight);
+        } else if (this.iconType === 'impassableWallSegment') {
+            ctx.fillStyle = '#4A4A4A'; // Dark gray for a solid wall appearance
+            ctx.fillRect(iconX, iconY, iconWidth, iconHeight);
+            // Optional: add some subtle texture or lines to make it look more like a wall
+            ctx.strokeStyle = '#333333';
+            ctx.lineWidth = 1;
+            // Example: Draw a few vertical lines
+            for (let i = 0; i < iconWidth; i += Math.max(5, iconWidth/4)) {
+                ctx.beginPath();
+                ctx.moveTo(iconX + i, iconY);
+                ctx.lineTo(iconX + i, iconY + iconHeight);
+                ctx.stroke();
+            }
         }
         ctx.restore();
     }

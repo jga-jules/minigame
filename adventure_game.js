@@ -88,6 +88,14 @@ const EXPLORE_BUTTON_Y = USE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MAR
 const INSPECT_BUTTON_X = INVENTORY_X + ACTION_BUTTON_SIDE_MARGIN;
 const INSPECT_BUTTON_Y = EXPLORE_BUTTON_Y - ACTION_BUTTON_HEIGHT - ACTION_BUTTON_MARGIN;
 
+// Scene 2 Alcove Constants (Top-Right Corner)
+// Assuming game area width is 400 (canvas.width 600 - INVENTORY_WIDTH 200)
+const SCENE2_ALCOVE_X_START = 300;
+const SCENE2_ALCOVE_Y_START = 0;
+const SCENE2_ALCOVE_WIDTH = 100; // Game area width - X_START
+const SCENE2_ALCOVE_HEIGHT = 100;
+const RETURN_BREACH_S2_TO_S3_NAME = "ReturnBreach_S2_Hidden_to_S3"; // Ensure this matches the hotspot name
+
 
 // Inventory Item Layout Constants (moved to global scope)
 const INV_ITEM_PADDING = 5; // Renamed from itemPadding to avoid potential future global conflicts
@@ -471,14 +479,63 @@ function initGame() {
     const scene2 = new Scene('scene2_id', '#D0E0D0');
     scene2.addEntryPoint('entryFromS1', 10 + (30/2), canvas.height / 2);
     scene2.addEntryPoint('entryFromS3', 550 - (30/2), canvas.height / 2);
-    scene2.addEntryPoint('entryFromS3_hidden', 350, 100); // New entry point for hidden area
+    // Updated entry point for the top-right corner alcove
+    scene2.addEntryPoint('entryFromS3_hidden', SCENE2_ALCOVE_X_START + SCENE2_ALCOVE_WIDTH / 2, SCENE2_ALCOVE_Y_START + SCENE2_ALCOVE_HEIGHT / 2);
     scene2.addBackgroundText("#include <header_file.h>", 50, 100, 'bold 40px monospace', '#224422');
     scene2.addBackgroundText("namespace Utilities {", 70, 150, '30px monospace', '#224422');
     scene2.addBackgroundText("  // Checksum function?", 90, 200, '30px monospace', '#224422');
     scene2.addBackgroundText("}", 70, 250, '30px monospace', '#224422');
-    // Text for the new hidden area in Scene 2
-    scene2.addBackgroundText("// SECURE SUBROUTINE //", 280, 80, 'italic 18px monospace', '#AA0000');
-    scene2.addBackgroundText("/* Access Restricted */", 300, 120, '16px monospace', '#AA0000');
+
+    // Text for the new hidden area in Scene 2 (within new alcove coordinates)
+    scene2.addBackgroundText("// SECURE SUBROUTINE //", SCENE2_ALCOVE_X_START + 10, SCENE2_ALCOVE_Y_START + 20, 'italic 16px monospace', '#AA0000');
+    scene2.addBackgroundText("/* Access Restricted */", SCENE2_ALCOVE_X_START + 15, SCENE2_ALCOVE_Y_START + 40, '14px monospace', '#AA0000');
+
+    // Remove old visual blockers as they are replaced by hotspot walls and new alcove position.
+    // scene2.addBackgroundText("||||||||||||||||", alcoveXStart - 10, alcoveYStart + 0, 'bold 12px monospace', '#112211');
+    // ... (all old blocker text lines removed) ...
+    // scene2.addBackgroundText("---- FIREWALL SEGMENT ----", alcoveXStart, alcoveYStart + alcoveHeight + 10, 'bold 14px monospace', '#112211');
+
+    // Add impassable wall hotspots for Scene 2 Alcove
+    const wallHotspotThickness = 10;
+
+    // Left Wall of Alcove - simplified to one segment for now
+    console.log("DEBUG: About to create AlcoveWall_Left_Test");
+    let alcoveWallTest = new Hotspot(
+        SCENE2_ALCOVE_X_START - wallHotspotThickness,
+        SCENE2_ALCOVE_Y_START,
+        wallHotspotThickness,
+        SCENE2_ALCOVE_HEIGHT,
+        null,
+        "AlcoveWall_Left_Test",
+        null, null, null,
+        'impassableWallSegment',
+        null,
+        "A solid data-wall.",
+        false
+    );
+    alcoveWallTest.isEnabled = false;
+    scene2.addHotspot(alcoveWallTest);
+    console.log("DEBUG: AlcoveWall_Left_Test hotspot object:", alcoveWallTest);
+    console.log("DEBUG: Scene 2 hotspots after adding AlcoveWall_Left_Test:", scene2.hotspots.map(h => ({ name: h.name, type: h.iconType, enabled: h.isEnabled }) ));
+
+    // Comment out other wall segments for now to isolate the issue
+    // const wallHotspotHeight = SCENE2_ALCOVE_HEIGHT / 2;
+    // let wallSegment2 = new Hotspot(SCENE2_ALCOVE_X_START - wallHotspotThickness, SCENE2_ALCOVE_Y_START + wallHotspotHeight, wallHotspotThickness, wallHotspotHeight,
+    //     null, "AlcoveWall_Left2", null, null, null, 'impassableWallSegment', null, "A solid data-wall.", false);
+    // wallSegment2.isEnabled = false;
+    // scene2.addHotspot(wallSegment2);
+
+    // const bottomWallSegmentWidth = SCENE2_ALCOVE_WIDTH / 2;
+    // let wallSegment3 = new Hotspot(SCENE2_ALCOVE_X_START, SCENE2_ALCOVE_Y_START + SCENE2_ALCOVE_HEIGHT, bottomWallSegmentWidth, wallHotspotThickness,
+    //     null, "AlcoveWall_Bottom1", null, null, null, 'impassableWallSegment', null, "A solid data-wall.", false);
+    // wallSegment3.isEnabled = false;
+    // scene2.addHotspot(wallSegment3);
+
+    // let wallSegment4 = new Hotspot(SCENE2_ALCOVE_X_START + bottomWallSegmentWidth, SCENE2_ALCOVE_Y_START + SCENE2_ALCOVE_HEIGHT, bottomWallSegmentWidth, wallHotspotThickness,
+    //     null, "AlcoveWall_Bottom2", null, null, null, 'impassableWallSegment', null, "A solid data-wall.", false);
+    // wallSegment4.isEnabled = false;
+    // scene2.addHotspot(wallSegment4);
+
     gameScenes['scene2_id'] = scene2;
 
     const scene3 = new Scene('scene3_id', '#D0D0E0');
@@ -731,10 +788,11 @@ function initGame() {
     scene2.addHotspot(hs_find_lighter);
 
     // Return Breached Wall Hotspot from Scene 2 (Hidden Alcove) to Scene 3
-    const RETURN_BREACH_S2_TO_S3_NAME = "ReturnBreach_S2_Hidden_to_S3";
-    const entryPointS2Hidden = scene2.getEntryPoint('entryFromS3_hidden'); // Get coords for positioning
+    // RETURN_BREACH_S2_TO_S3_NAME is already defined globally
+    const entryPointS2Hidden = scene2.getEntryPoint('entryFromS3_hidden');
     const hs_return_breach_s2_to_s3 = new Hotspot(
-        entryPointS2Hidden.x - 25, entryPointS2Hidden.y - 25, 50, 50, // Centered around entry point
+        // Position within the new top-right alcove, e.g., near its bottom-left part to suggest an exit
+        SCENE2_ALCOVE_X_START + 10, SCENE2_ALCOVE_Y_START + SCENE2_ALCOVE_HEIGHT - 40, 30, 30,
         function() { // onClickAction
             if (this.isEnabled) {
                 goToScene('scene3_id', 'entryFromS2_hidden_return');
@@ -1329,6 +1387,31 @@ canvas.addEventListener('click', function(event) {
             }
         }
     }
+
+    // Scene 2 Alcove Movement Restriction Logic
+    if (currentScene.id === 'scene2_id') {
+        function isPointInAlcove(x, y) {
+            return x >= SCENE2_ALCOVE_X_START && x < SCENE2_ALCOVE_X_START + SCENE2_ALCOVE_WIDTH &&
+                   y >= SCENE2_ALCOVE_Y_START && y < SCENE2_ALCOVE_Y_START + SCENE2_ALCOVE_HEIGHT;
+        }
+
+        const detectiveInAlcove = isPointInAlcove(detective.x, detective.y);
+        const targetInAlcove = isPointInAlcove(mouseX, mouseY);
+        // Check name of clickedHotspot, ensure RETURN_BREACH_S2_TO_S3_NAME is defined globally or passed correctly
+        const targetIsReturnBreachHotspot = (clickedHotspot && clickedHotspot.name === RETURN_BREACH_S2_TO_S3_NAME);
+
+        if (detectiveInAlcove && !targetInAlcove && !targetIsReturnBreachHotspot) {
+            latestLogMessage = "You must use the passage to leave the alcove.";
+            return;
+        }
+        if (!detectiveInAlcove && targetInAlcove && !targetIsReturnBreachHotspot) {
+            // This condition might also need to check if the entry point itself is the target,
+            // but for now, any click into alcove not on the breach hotspot is blocked.
+            latestLogMessage = "You cannot reach that restricted area directly.";
+            return;
+        }
+    }
+
 
     if (currentInteractionMode === 'usingItem') {
         if (clickedHotspot) {
