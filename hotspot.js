@@ -134,6 +134,9 @@ class Hotspot {
 
         if (iconWidth <= 0 || iconHeight <= 0) return;
 
+        // NEW DEBUG LINE:
+        console.log(`Hotspot drawing attempt: ${this.name}, Type: ${this.iconType}, Enabled: ${this.isEnabled}, X: ${this.x}, Y: ${this.y}, W: ${this.width}, H: ${this.height}, iconW: ${iconWidth}, iconH: ${iconHeight}`);
+
         ctx.save();
         ctx.lineWidth = 2; // Default lineWidth for icons
 
