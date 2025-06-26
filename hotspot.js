@@ -8,7 +8,8 @@ class Hotspot {
                 iconType = 'debugRect',
                 associatedBug = null,
                 exploreText = `This is a ${name || 'hotspot'}. It looks interactive.`,
-                isBreached = false
+                isBreached = false,
+                isLit = null // New property for fireplace state
                 ) {
         this.x = x;
         this.y = y;
@@ -26,6 +27,7 @@ class Hotspot {
         this.associatedBug = associatedBug;
         this.exploreText = exploreText;
         this.isBreached = isBreached;
+        this.isLit = isLit;
     }
 
     isClicked(mouseX, mouseY) {
@@ -90,7 +92,7 @@ class Hotspot {
     }
 
     draw(ctx) {
-        const persistentWhenDisabled = ['impassableWallSegment', 'crackedWall', 'breachedWallOpening', 'fireplaceIcon'];
+        const persistentWhenDisabled = ['impassableWallSegment', 'crackedWall', 'breachedWallOpening', 'fireplaceIcon', 'fireplaceWithFireIcon'];
 
         if (!this.isEnabled && !persistentWhenDisabled.includes(this.iconType)) {
             return;
@@ -310,6 +312,39 @@ class Hotspot {
             ctx.fillRect(iconX + iconWidth * 0.3, iconY, iconWidth * 0.4, iconHeight * 0.2);
             ctx.strokeStyle = 'black';
             ctx.strokeRect(iconX + iconWidth * 0.2, iconY, iconWidth * 0.6, iconHeight);
+        } else if (this.iconType === 'extinguisherIcon') {
+            const bodyColor = 'crimson';
+            const nozzleColor = 'black';
+            const handleColor = 'darkgray';
+
+            // Body
+            ctx.fillStyle = bodyColor;
+            const bodyWidth = iconWidth * 0.6;
+            const bodyHeight = iconHeight * 0.7;
+            const bodyX = iconX + (iconWidth - bodyWidth) / 2;
+            const bodyY = iconY + iconHeight * 0.3;
+            ctx.fillRect(bodyX, bodyY, bodyWidth, bodyHeight);
+            ctx.strokeRect(bodyX, bodyY, bodyWidth, bodyHeight);
+
+
+            // Handle
+            ctx.fillStyle = handleColor;
+            const handleWidth = bodyWidth * 0.8;
+            const handleHeight = iconHeight * 0.15;
+            const handleX = bodyX + (bodyWidth - handleWidth) / 2;
+            const handleY = bodyY - handleHeight * 0.7;
+            ctx.fillRect(handleX, handleY, handleWidth, handleHeight);
+            ctx.strokeRect(handleX, handleY, handleWidth, handleHeight);
+
+            // Nozzle (simple small rectangle on top of handle area)
+            ctx.fillStyle = nozzleColor;
+            const nozzleWidth = iconWidth * 0.15;
+            const nozzleHeight = iconHeight * 0.2;
+            const nozzleX = iconX + (iconWidth - nozzleWidth) / 2;
+            const nozzleY = iconY;
+            ctx.fillRect(nozzleX, nozzleY, nozzleWidth, nozzleHeight);
+            ctx.strokeRect(nozzleX, nozzleY, nozzleWidth, nozzleHeight);
+
         } else if (this.iconType === 'impassableWallSegment') {
             // This was for debugging the alcove, leaving the visual code but it should not be used.
             ctx.fillStyle = 'gray';
@@ -341,6 +376,67 @@ class Hotspot {
             ctx.moveTo(iconX + fireboxMarginX * 1.5, logY);
             ctx.lineTo(iconX + iconWidth - fireboxMarginX * 1.5, logY);
             ctx.stroke();
+        } else if (this.iconType === 'fireplaceWithFireIcon') {
+            const baseColor = '#5D4037';
+            const fireboxColor = '#111111'; // Darker for contrast with fire
+            const fireColor1 = 'orange';
+            const fireColor2 = 'yellow';
+            const fireColor3 = 'red';
+
+            // Draw base fireplace structure (same as 'fireplaceIcon')
+            ctx.fillStyle = baseColor;
+            ctx.fillRect(iconX - 2, iconY - 2, iconWidth + 4, iconHeight + 4);
+            const fireboxMarginX = iconWidth * 0.2;
+            const fireboxMarginY = iconHeight * 0.15;
+            ctx.fillStyle = fireboxColor;
+            ctx.fillRect(
+                iconX + fireboxMarginX,
+                iconY + fireboxMarginY,
+                iconWidth - 2 * fireboxMarginX,
+                iconHeight - fireboxMarginY
+            );
+            ctx.strokeStyle = '#444444';
+            ctx.lineWidth = Math.max(1, iconWidth * 0.05);
+            const logYPos = iconY + iconHeight * 0.75;
+            ctx.beginPath();
+            ctx.moveTo(iconX + fireboxMarginX * 1.5, logYPos);
+            ctx.lineTo(iconX + iconWidth - fireboxMarginX * 1.5, logYPos);
+            ctx.stroke();
+
+            // Draw Flames (simple flickering style)
+            const fireBaseY = iconY + iconHeight * 0.7;
+            const fireMaxHeight = iconHeight * 0.5;
+            const fireboxCenterX = iconX + iconWidth / 2;
+
+            // Flame 1 (Largest, back)
+            ctx.fillStyle = fireColor1;
+            ctx.beginPath();
+            ctx.moveTo(fireboxCenterX - iconWidth * 0.15, fireBaseY);
+            ctx.bezierCurveTo(
+                fireboxCenterX - iconWidth * 0.2, fireBaseY - fireMaxHeight * 0.8, // Control point 1
+                fireboxCenterX + iconWidth * 0.2, fireBaseY - fireMaxHeight * 0.7, // Control point 2
+                fireboxCenterX + iconWidth * 0.15, fireBaseY); // End point
+            ctx.fill();
+
+            // Flame 2 (Medium, middle)
+            ctx.fillStyle = fireColor2;
+            ctx.beginPath();
+            ctx.moveTo(fireboxCenterX - iconWidth * 0.1, fireBaseY);
+            ctx.bezierCurveTo(
+                fireboxCenterX - iconWidth * 0.15, fireBaseY - fireMaxHeight * 0.6,
+                fireboxCenterX + iconWidth * 0.15, fireBaseY - fireMaxHeight * 0.5,
+                fireboxCenterX + iconWidth * 0.1, fireBaseY);
+            ctx.fill();
+
+            // Flame 3 (Smallest, front, hint of red)
+            ctx.fillStyle = fireColor3;
+            ctx.beginPath();
+            ctx.moveTo(fireboxCenterX - iconWidth * 0.05, fireBaseY);
+            ctx.bezierCurveTo(
+                fireboxCenterX - iconWidth * 0.1, fireBaseY - fireMaxHeight * 0.3,
+                fireboxCenterX + iconWidth * 0.1, fireBaseY - fireMaxHeight * 0.4,
+                fireboxCenterX + iconWidth * 0.05, fireBaseY);
+            ctx.fill();
         }
         ctx.restore();
     }

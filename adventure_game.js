@@ -319,13 +319,25 @@ function initGame() {
 
     const NAME_HAMMER = "Hammer";
     const NAME_CROWBAR = "Crowbar";
-    const NAME_EXPLOSIVE_DEVICE = "Explosive Device";
+    const NAME_EXPLOSIVE_DEVICE = "Explosive Device"; // Already here, just for context
+    const NAME_EXTINGUISHER = "Extinguisher"; // For consistency, though not used in this specific step
+    const NAME_LIGHTER = "Lighter"; // For consistency
+
+    // Names for synced hotspots
+    const S3_S2_FIREPLACE_S3_NAME = "S3_S2_Fireplace_S3"; // Defined in previous step
+    const S3_S2_FIREPLACE_S2_NAME = "S3_S2_Fireplace_S2"; // Defined in previous step
+    const S3_S4_BREACH_WALL_S3_NAME = "Weak Wall to Archive"; // Existing name for S3 side
+    const S4_S3_BREACH_WALL_S4_NAME = "ReturnBreach_S4_to_S3_Wall"; // New name for S4 side (was fireplace)
+
+    // const NAME_HAMMER = "Hammer"; // Already defined above
+    // const NAME_CROWBAR = "Crowbar"; // Already defined above
+    // const NAME_EXPLOSIVE_DEVICE = "Explosive Device"; // Already defined above
 
     const pointsRed = 40, pointsGray = 30, pointsOrange = 20, pointsGreen = 10;
     const pointsViolet = 0;
 
     let rustyKey, goldenKey;
-    let hammer, crowbar, gasBottle, cottonWick, lighter, primedGasBottle, explosiveDevice;
+    let hammer, crowbar, gasBottle, cottonWick, lighter, primedGasBottle, explosiveDevice, extinguisher;
 
     v1_s1 = new Bug(100, 180, 'green', pointsGreen, "Green Bug V1", false, false, '', '',
                   "A common, yet elusive green data-bug. Often found nesting in older code structures.");
@@ -366,6 +378,10 @@ function initGame() {
     explosiveDevice = new Bug(0,0, 'darkred', 0, "Explosive Device", false, false, '', '',
                             "A makeshift explosive. Handle with extreme care!", "This should be powerful enough to clear rubble... or make more.");
 
+    extinguisher = new Bug(0,0, 'crimson', 0, "Extinguisher", false, false, '', '', // Using crimson, common for fire extinguishers
+                         "A portable fire extinguisher.", "Seems purpose-built for dousing flames. Safety first!");
+
+
     const scene1 = new Scene('scene1_id', '#E0E0E0');
     scene1.addEntryPoint('entryFromS2', 550 - (30/2), canvas.height / 2);
     const mainSceneWidthForSpawn = canvas.width - INVENTORY_WIDTH;
@@ -382,7 +398,7 @@ function initGame() {
 
     const scene2 = new Scene('scene2_id', '#D0E0D0');
     scene2.addEntryPoint('entryFromS1', 10 + (30/2), canvas.height / 2);
-    scene2.addEntryPoint('entryFromS3_passage_return', canvas.width - INVENTORY_WIDTH - 70 + 30, 100 + 25);
+    scene2.addEntryPoint('entryS2_from_S3_fireplace', canvas.width - INVENTORY_WIDTH - 70 + 30, 100 + 25); // New for fireplace
     scene2.addBackgroundText("#include <header_file.h>", 50, 100, 'bold 40px monospace', '#224422');
     scene2.addBackgroundText("namespace Utilities {", 70, 150, '30px monospace', '#224422');
     scene2.addBackgroundText("  // Checksum function?", 90, 200, '30px monospace', '#224422');
@@ -390,9 +406,9 @@ function initGame() {
     gameScenes['scene2_id'] = scene2;
 
     const scene3 = new Scene('scene3_id', '#D0D0E0');
-    scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2); // Original door entry, now unused by player nav
+    scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2); // Original door entry, potentially unused
     scene3.addEntryPoint('entryFromS4_breach_return', canvas.width - INVENTORY_WIDTH - 70 + 30, canvas.height / 2 + 60 + 25);
-    scene3.addEntryPoint('entryFromS2_passage', 10 + (30/2), 100 + 25);
+    scene3.addEntryPoint('entryS3_from_S2_fireplace', 10 + (30/2), 100 + 25);  // New for fireplace
     scene3.addBackgroundText("struct LogFile {", 50, 100, 'bold 36px monospace', '#222244');
     scene3.addBackgroundText("  char timestamp[32];", 70, 150, '28px monospace', '#222244');
     scene3.addBackgroundText("  char message[256];", 70, 200, '28px monospace', '#222244');
@@ -408,25 +424,60 @@ function initGame() {
 
     scene4.bugs = []; scene4.hotspots = [];
 
-    const RETURN_BREACH_S4_TO_S3_NAME = "ReturnFireplace_S4_to_S3";
-    const hs_return_breach_s4_to_s3 = new Hotspot(
-        10, canvas.height / 2, 60, 50,
-        function() {
-            if (this.isEnabled) {
+    // const RETURN_BREACH_S4_TO_S3_NAME = "ReturnFireplace_S4_to_S3"; // Old name, replaced by S4_S3_BREACH_WALL_S4_NAME
+    const hs_breach_s4_to_s3 = new Hotspot(
+        10, canvas.height / 2, 60, 50, // Positioned on the left in Scene 4
+        function() { // onClickAction
+            if (this.isBreached) {
                 goToScene('scene3_id', 'entryFromS4_breach_return');
             } else {
-                latestLogMessage = "A solid wall. No obvious way through from here.";
+                latestLogMessage = "This section of the archive wall looks unstable.";
             }
         },
-        RETURN_BREACH_S4_TO_S3_NAME,
-        null, null, null,
-        'debugRect',
-        null,
-        "The wall seems solid here.",
-        false,
-        true
+        S4_S3_BREACH_WALL_S4_NAME, // New name for this hotspot
+        [NAME_HAMMER, NAME_CROWBAR, NAME_EXPLOSIVE_DEVICE], // Required items
+        function() { // onUseItemSuccessAction
+            let toolUsed = selectedInventoryItems[0] ? selectedInventoryItems[0].name : "a tool";
+            latestLogMessage = `The ${toolUsed} smashes through the archive wall! You can return to the Toolbox area.`;
+
+            this.isBreached = true;
+            this.iconType = 'breachedWallOpening';
+            this.exploreText = "A fresh hole in the wall leads back to the Toolbox area.";
+            this.requiredItemName = null;
+
+            // Sync with counterpart in Scene 3
+            const scene3Hotspots = gameScenes['scene3_id']?.hotspots;
+            if (scene3Hotspots) {
+                const counterpartHotspotS3 = scene3Hotspots.find(h => h.name === S3_S4_BREACH_WALL_S3_NAME);
+                if (counterpartHotspotS3 && !counterpartHotspotS3.isBreached) {
+                    counterpartHotspotS3.isBreached = true;
+                    counterpartHotspotS3.iconType = 'breachedWallOpening';
+                    counterpartHotspotS3.exploreText = "A gaping hole leads to The Archive.";
+                    counterpartHotspotS3.requiredItemName = null;
+                }
+            } else {
+                console.error("Could not find Scene 3 hotspots to sync S4->S3 breach.");
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (this.isBreached) {
+                latestLogMessage = "The way is already open."; return;
+            }
+            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
+                 latestLogMessage = "Select a suitable tool (Hammer, Crowbar, or Explosive Device), click 'Use Item', then click the wall.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} is not the right tool for this reinforced archive wall.`;
+            } else {
+                latestLogMessage = "This archive wall is cracked but needs a strong tool to break through.";
+            }
+        },
+        'crackedWall', // initial iconType
+        null, // associatedBug
+        "The wall here is heavily cracked. It might be possible to break through from this side too.", // initial exploreText
+        false, // initial isBreached state
+        true // isEnabled (so it can be interacted with)
     );
-    scene4.addHotspot(hs_return_breach_s4_to_s3);
+    scene4.addHotspot(hs_breach_s4_to_s3);
 
     const navHotspot_s4_to_s1 = new Hotspot(
         canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2, 60, 50,
@@ -456,6 +507,51 @@ function initGame() {
         "An ornate chest sits in the corner. It doesn't appear to be locked."
     );
     scene4.addHotspot(hs_archive_chest);
+
+    const hs_decorative_fireplace_s4 = new Hotspot(
+        400, 200, 60, 50, // Position in Scene 4
+        function() { // onClickAction
+            if (this.isLit) {
+                latestLogMessage = "This grand fireplace gives off a synthetic warmth. It's quite impressive, but just for show.";
+            } else {
+                latestLogMessage = "You check the extinguished grand fireplace. Nothing but a sleepy data-slug and some old archive dust. No secret tunnels here!";
+            }
+        },
+        "Grand Archive Fireplace",
+        ["Extinguisher", "Lighter"],
+        function() { // onUseItemSuccessAction
+            const itemUsed = selectedInventoryItems[0];
+            if (itemUsed.name === "Extinguisher" && this.isLit) {
+                this.isLit = false;
+                this.iconType = 'fireplaceIcon';
+                this.exploreText = "The grand fireplace is out. Inside, you find a surprisingly well-preserved data-slug snoring softly. Best not to disturb it.";
+                latestLogMessage = "You put out the fire in the grand archive fireplace. A data-slug seems to appreciate the quiet.";
+            } else if (itemUsed.name === "Lighter" && !this.isLit) {
+                this.isLit = true;
+                this.iconType = 'fireplaceWithFireIcon';
+                this.exploreText = "A grand fireplace, though the fire within looks suspiciously artificial.";
+                latestLogMessage = "The grand archive fireplace is now lit, bathing the corner in a warm glow.";
+            } else if (itemUsed.name === "Extinguisher" && !this.isLit) {
+                latestLogMessage = "The fireplace is already unlit.";
+            } else if (itemUsed.name === "Lighter" && this.isLit) {
+                latestLogMessage = "The fire is already going strong!";
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
+                latestLogMessage = "Select an item (Extinguisher or Lighter) to use on the fireplace.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} doesn't seem to work on this grand fireplace.`;
+            }
+        },
+        'fireplaceWithFireIcon', // initial iconType
+        null, // associatedBug
+        "A grand fireplace, though the fire within looks suspiciously artificial.", // initial exploreText
+        false, // isBreached
+        true // initial isLit state
+    );
+    scene4.addHotspot(hs_decorative_fireplace_s4);
+
 
     scene1.bugs = []; scene1.hotspots = [];
     scene1.addBug(v1_s1);
@@ -568,6 +664,51 @@ function initGame() {
     );
     scene1.addHotspot(navHotspot_s1_to_s4);
 
+    const hs_decorative_fireplace_s1 = new Hotspot(
+        350, 150, 60, 50, // Position in Scene 1
+        function() { // onClickAction
+            if (this.isLit) {
+                latestLogMessage = "This old fireplace is burning fiercely. Not much else to it.";
+            } else {
+                latestLogMessage = "You peer into the extinguished fireplace... just a bunch of soot and a lost sock. Definitely not a secret passage.";
+            }
+        },
+        "Dusty Old Fireplace",
+        ["Extinguisher", "Lighter"],
+        function() { // onUseItemSuccessAction
+            const itemUsed = selectedInventoryItems[0];
+            if (itemUsed.name === "Extinguisher" && this.isLit) {
+                this.isLit = false;
+                this.iconType = 'fireplaceIcon';
+                this.exploreText = "The fireplace is cold. Peering inside, you see only cobwebs and a faint smell of burnt data packets.";
+                latestLogMessage = "You extinguish the decorative fireplace in Scene 1. It's just an old, cold hearth now.";
+            } else if (itemUsed.name === "Lighter" && !this.isLit) {
+                this.isLit = true;
+                this.iconType = 'fireplaceWithFireIcon';
+                this.exploreText = "A dusty old fireplace. It's currently roaring with a digital fire.";
+                latestLogMessage = "You light the decorative fireplace in Scene 1. It crackles merrily.";
+            } else if (itemUsed.name === "Extinguisher" && !this.isLit) {
+                latestLogMessage = "It's already out. Save your extinguisher foam!";
+            } else if (itemUsed.name === "Lighter" && this.isLit) {
+                latestLogMessage = "It's already burning brightly!";
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
+                latestLogMessage = "Select an item (Extinguisher or Lighter) to use on the fireplace.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} has no effect on this old fireplace.`;
+            }
+        },
+        'fireplaceWithFireIcon', // initial iconType
+        null, // associatedBug
+        "A dusty old fireplace. It's currently roaring with a digital fire.", // initial exploreText
+        false, // isBreached
+        true // initial isLit state
+    );
+    scene1.addHotspot(hs_decorative_fireplace_s1);
+
+
     scene2.bugs = []; scene2.hotspots = [];
     scene2.addBug(r1_s2);
     scene2.addBug(v2_s2);
@@ -611,7 +752,7 @@ function initGame() {
         false,
         true
     );
-    scene2.addHotspot(hs_fireplace_s2_to_s3);
+    // scene2.addHotspot(hs_fireplace_s2_to_s3); // This was the old breach return, will be replaced by a two-way fireplace hotspot
 
     const navHotspot_s2_to_s1 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene1_id', 'entryFromS2'); }, "NAV_S2_to_S1", null, null, null, 'door', null);
     scene2.addHotspot(navHotspot_s2_to_s1);
@@ -654,6 +795,20 @@ function initGame() {
     );
     scene3.addHotspot(hs_find_gas_bottle);
 
+    if (extinguisher) scene3.addBug(extinguisher);
+    const hs_find_extinguisher = new Hotspot(
+        250, 70, 40, 60, // Positioned somewhere in Scene 3
+        function() {
+            findBugAction(extinguisher);
+            latestLogMessage = "You found a Fire Extinguisher!";
+            hs_find_extinguisher.isEnabled = false;
+            hs_find_extinguisher.exploreText = "An empty mounting bracket for an extinguisher.";
+        },
+        "Fire Extinguisher Case", null, null, null, 'extinguisherIcon', extinguisher,
+        "A fire extinguisher is mounted on the wall here."
+    );
+    scene3.addHotspot(hs_find_extinguisher);
+
     scene4.addEntryPoint('entryFromS3_archive', 10 + (30/2), canvas.height / 2);
     const hs_breach_s3_to_s4 = new Hotspot(
         canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 + 60, 60, 50,
@@ -679,13 +834,14 @@ function initGame() {
             this.requiredItemName = null;
 
             const scene4Hotspots = gameScenes['scene4_id'] ? gameScenes['scene4_id'].hotspots : [];
-            const returnHotspotS4 = scene4Hotspots.find(h => h.name === RETURN_BREACH_S4_TO_S3_NAME);
-            if (returnHotspotS4) {
-                returnHotspotS4.isEnabled = true;
-                returnHotspotS4.iconType = 'fireplaceIcon';
-                returnHotspotS4.exploreText = "A surprisingly intact fireplace. It seems to lead back to the Toolbox area (Scene 3).";
+            const counterpartHotspotS4 = scene4Hotspots.find(h => h.name === S4_S3_BREACH_WALL_S4_NAME); // New name for S4 counterpart
+            if (counterpartHotspotS4) {
+                counterpartHotspotS4.isBreached = true;
+                counterpartHotspotS4.iconType = 'breachedWallOpening';
+                counterpartHotspotS4.exploreText = "A hole in the wall leads back to the Toolbox area.";
+                counterpartHotspotS4.requiredItemName = null;
             } else {
-                console.error("Could not find return hotspot " + RETURN_BREACH_S4_TO_S3_NAME + " in Scene 4 to enable.");
+                console.error("Could not find counterpart breach hotspot " + S4_S3_BREACH_WALL_S4_NAME + " in Scene 4.");
             }
         },
         function(selectedItem, failureReason) {
@@ -706,56 +862,125 @@ function initGame() {
     );
     scene3.addHotspot(hs_breach_s3_to_s4);
 
-    const hs_breach_s3_to_s2_passage = new Hotspot(
-        10, 100, 60, 50,
-        function() {
-            if (this.isBreached) {
-                goToScene('scene2_id', 'entryFromS3_passage_return');
-            } else {
-                latestLogMessage = "This wall near the old door connection seems brittle.";
-            }
-        },
-        "Brittle Wall to Utilities",
-        [NAME_HAMMER, NAME_CROWBAR, NAME_EXPLOSIVE_DEVICE],
-        function() {
-            let toolUsed = selectedInventoryItems[0] ? selectedInventoryItems[0].name : "a tool";
-            if (toolUsed === NAME_EXPLOSIVE_DEVICE) {
-                latestLogMessage = `The ${toolUsed} shatters the brittle wall! You can now reach the Utilities area (Scene 2).`;
-            } else {
-                latestLogMessage = `With the ${toolUsed}, you break through the brittle wall to the Utilities area (Scene 2)!`;
-            }
-            this.isBreached = true;
-            this.iconType = 'breachedWallOpening';
-            this.exploreText = "A jagged opening leads to the Utilities area. Click to enter.";
-            this.requiredItemName = null;
+    // hs_breach_s3_to_s2_passage REMOVED - will be replaced by fireplace logic below
+    const S3_S2_FIREPLACE_S3_NAME = "S3_S2_Fireplace_S3";
+    const S3_S2_FIREPLACE_S2_NAME = "S3_S2_Fireplace_S2";
 
-            const scene2Hotspots = gameScenes['scene2_id'] ? gameScenes['scene2_id'].hotspots : [];
-            const returnHotspotS2 = scene2Hotspots.find(h => h.name === RETURN_PASSAGE_S2_TO_S3_NAME);
-            if (returnHotspotS2) {
-                returnHotspotS2.isEnabled = true;
-                returnHotspotS2.iconType = 'fireplaceIcon';
-                returnHotspotS2.exploreText = "A newly revealed fireplace. It seems to lead back to the Toolbox area (Scene 3).";
+    const hs_s3_s2_fireplace_s3 = new Hotspot(
+        10, 100, 60, 50, // Position similar to old breach
+        function() { // onClickAction
+            if (this.isLit === false) {
+                goToScene('scene2_id', 'entryS2_from_S3_fireplace');
             } else {
-                console.error("Could not find return hotspot " + RETURN_PASSAGE_S2_TO_S3_NAME + " in Scene 2 to enable.");
+                latestLogMessage = "The fireplace is blazing! It's far too hot to even think about going through.";
             }
         },
-        function(selectedItem, failureReason) {
-            if (this.isBreached) {
-                latestLogMessage = "The way is already open."; return;
+        S3_S2_FIREPLACE_S3_NAME,
+        ["Extinguisher", "Lighter"], // Required items for onUseItemSuccessAction
+        function() { // onUseItemSuccessAction
+            const itemUsed = selectedInventoryItems[0];
+            const counterpartHotspotS2 = gameScenes['scene2_id']?.hotspots.find(h => h.name === S3_S2_FIREPLACE_S2_NAME);
+
+            if (itemUsed.name === "Extinguisher" && this.isLit) {
+                this.isLit = false;
+                this.iconType = 'fireplaceIcon';
+                this.exploreText = "The fire is out! A dark passage is revealed... smells faintly of digital soot and old code.";
+                latestLogMessage = "With a *PSSSHHHH*, you douse the flames. A passage to the Utilities area is clear!";
+                if (counterpartHotspotS2) {
+                    counterpartHotspotS2.isLit = false;
+                    counterpartHotspotS2.iconType = 'fireplaceIcon';
+                    counterpartHotspotS2.exploreText = this.exploreText;
+                }
+            } else if (itemUsed.name === "Lighter" && !this.isLit) {
+                this.isLit = true;
+                this.iconType = 'fireplaceWithFireIcon';
+                this.exploreText = "A roaring fire blocks this old fireplace. Seems impassable.";
+                latestLogMessage = "You reignite the fireplace. The passage is now blocked by flames.";
+                 if (counterpartHotspotS2) {
+                    counterpartHotspotS2.isLit = true;
+                    counterpartHotspotS2.iconType = 'fireplaceWithFireIcon';
+                    counterpartHotspotS2.exploreText = this.exploreText;
+                }
+            } else if (itemUsed.name === "Extinguisher" && !this.isLit) {
+                latestLogMessage = "It's already extinguished. No need for overkill, chief.";
+            } else if (itemUsed.name === "Lighter" && this.isLit) {
+                latestLogMessage = "It's already lit! Adding more fire seems... excessive.";
             }
-            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
-                 latestLogMessage = "Select a single tool (Hammer, Crowbar, or Explosive Device), click 'Use Item', then click the wall.";
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+            if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
+                latestLogMessage = "Select either the Extinguisher or Lighter, click 'Use Item', then click the fireplace.";
             } else if (selectedItem) {
-                latestLogMessage = `The ${selectedItem.name} isn't strong enough or suitable for this wall.`;
+                 latestLogMessage = `Using the ${selectedItem.name} on the fireplace has no effect.`;
             } else {
-                latestLogMessage = "This wall feels brittle, but you need a tool to breach it.";
+                latestLogMessage = "This fireplace looks like it could be interacted with using the right item.";
             }
         },
-        'crackedWall',
-        null,
-        "A section of the wall near the old door frame looks particularly brittle."
+        'fireplaceWithFireIcon', // initial iconType
+        null, // associatedBug
+        "A roaring fire blocks this old fireplace. Seems impassable.", // initial exploreText
+        false, // isBreached (not applicable here)
+        true // initial isLit state
     );
-    scene3.addHotspot(hs_breach_s3_to_s2_passage);
+    scene3.addHotspot(hs_s3_s2_fireplace_s3);
+
+    const hs_s3_s2_fireplace_s2 = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, 100, 60, 50, // Positioned on the right in Scene 2
+        function() { // onClickAction
+            if (this.isLit === false) {
+                goToScene('scene3_id', 'entryS3_from_S2_fireplace');
+            } else {
+                latestLogMessage = "The fireplace is blazing! It's far too hot to even think about going through.";
+            }
+        },
+        S3_S2_FIREPLACE_S2_NAME,
+        ["Extinguisher", "Lighter"], // Required items
+        function() { // onUseItemSuccessAction
+            const itemUsed = selectedInventoryItems[0];
+            const counterpartHotspotS3 = gameScenes['scene3_id']?.hotspots.find(h => h.name === S3_S2_FIREPLACE_S3_NAME);
+
+            if (itemUsed.name === "Extinguisher" && this.isLit) {
+                this.isLit = false;
+                this.iconType = 'fireplaceIcon';
+                this.exploreText = "The fire is out! A dark passage is revealed... smells faintly of digital soot and old code.";
+                latestLogMessage = "With a *WHOOSH* of cold spray, the fire is extinguished. A passage to the Toolbox is clear!";
+                if (counterpartHotspotS3) {
+                    counterpartHotspotS3.isLit = false;
+                    counterpartHotspotS3.iconType = 'fireplaceIcon';
+                    counterpartHotspotS3.exploreText = this.exploreText;
+                }
+            } else if (itemUsed.name === "Lighter" && !this.isLit) {
+                this.isLit = true;
+                this.iconType = 'fireplaceWithFireIcon';
+                this.exploreText = "A roaring fire blocks this old fireplace. Seems impassable.";
+                latestLogMessage = "You light the fireplace. The passage is now blocked by flames.";
+                if (counterpartHotspotS3) {
+                    counterpartHotspotS3.isLit = true;
+                    counterpartHotspotS3.iconType = 'fireplaceWithFireIcon';
+                    counterpartHotspotS3.exploreText = this.exploreText;
+                }
+            } else if (itemUsed.name === "Extinguisher" && !this.isLit) {
+                latestLogMessage = "The fire's already out. No need to make a mess.";
+            } else if (itemUsed.name === "Lighter" && this.isLit) {
+                latestLogMessage = "This fire is plenty big already!";
+            }
+        },
+        function(selectedItem, failureReason) { // onUseItemFailureAction
+             if (failureReason === "Too many items selected while using" || failureReason === "No item selected while using") {
+                latestLogMessage = "Select either the Extinguisher or Lighter, click 'Use Item', then click the fireplace.";
+            } else if (selectedItem) {
+                 latestLogMessage = `The ${selectedItem.name} doesn't seem to do anything to this fireplace.`;
+            } else {
+                latestLogMessage = "This fireplace looks like it could be interacted with using the right item.";
+            }
+        },
+        'fireplaceWithFireIcon', // initial iconType
+        null, // associatedBug
+        "A roaring fire blocks this old fireplace. Seems impassable.", // initial exploreText
+        false, // isBreached
+        true // initial isLit state
+    );
+    scene2.addHotspot(hs_s3_s2_fireplace_s2);
 
 
     const ancientCache = new Hotspot(
