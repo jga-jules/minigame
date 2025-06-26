@@ -134,8 +134,6 @@ function drawUI(ctx) {
 
     let currentItemY = INV_ITEM_START_Y;
 
-    console.log("[drawUI] selectedInventoryItems before item loop:", JSON.stringify(selectedInventoryItems.map(item => item.name)));
-
     foundBugsInventory.forEach((bug, index) => {
         if (currentItemY + INV_LINE_HEIGHT + INV_ITEM_PADDING > INSPECT_BUTTON_Y - ACTION_BUTTON_MARGIN) {
             return;
@@ -159,11 +157,6 @@ function drawUI(ctx) {
 
         currentItemY += INV_LINE_HEIGHT + INV_ITEM_PADDING;
     });
-
-    console.log("Attempting to draw Combine Button. Canvas:", canvas.width, "x", canvas.height);
-    console.log("Inventory Panel: X:", INVENTORY_X, "Y:", INVENTORY_Y, "W:", INVENTORY_WIDTH, "H:", INVENTORY_HEIGHT);
-    console.log("Combine Button Params: X:", COMBINE_BUTTON_X, "Y:", COMBINE_BUTTON_Y, "W:", COMBINE_BUTTON_WIDTH, "H:", COMBINE_BUTTON_HEIGHT, "Margin:", COMBINE_BUTTON_MARGIN);
-    console.log("Selected items for button color:", selectedInventoryItems.length);
 
     const canInspect = currentInteractionMode === 'normal' && selectedInventoryItems.length === 1;
     ctx.fillStyle = canInspect ? '#6f42c1' : '#6c757d';
@@ -306,7 +299,6 @@ function updateWinnableItemsCount() {
     if (winnableItemsInInventoryCount === totalWinnableItems) {
         if (!gameWon) {
             gameWon = true;
-            console.log("All winnable items acquired! Game Won! Final Score: " + score);
         }
     }
 }
@@ -390,7 +382,7 @@ function initGame() {
 
     const scene2 = new Scene('scene2_id', '#D0E0D0');
     scene2.addEntryPoint('entryFromS1', 10 + (30/2), canvas.height / 2);
-    scene2.addEntryPoint('entryFromS3', 550 - (30/2), canvas.height / 2);
+    scene2.addEntryPoint('entryFromS3_passage_return', canvas.width - INVENTORY_WIDTH - 70 + 30, 100 + 25);
     scene2.addBackgroundText("#include <header_file.h>", 50, 100, 'bold 40px monospace', '#224422');
     scene2.addBackgroundText("namespace Utilities {", 70, 150, '30px monospace', '#224422');
     scene2.addBackgroundText("  // Checksum function?", 90, 200, '30px monospace', '#224422');
@@ -398,8 +390,9 @@ function initGame() {
     gameScenes['scene2_id'] = scene2;
 
     const scene3 = new Scene('scene3_id', '#D0D0E0');
-    scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2);
+    scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2); // Original door entry, now unused by player nav
     scene3.addEntryPoint('entryFromS4_breach_return', canvas.width - INVENTORY_WIDTH - 70 + 30, canvas.height / 2 + 60 + 25);
+    scene3.addEntryPoint('entryFromS2_passage', 10 + (30/2), 100 + 25);
     scene3.addBackgroundText("struct LogFile {", 50, 100, 'bold 36px monospace', '#222244');
     scene3.addBackgroundText("  char timestamp[32];", 70, 150, '28px monospace', '#222244');
     scene3.addBackgroundText("  char message[256];", 70, 200, '28px monospace', '#222244');
@@ -415,7 +408,7 @@ function initGame() {
 
     scene4.bugs = []; scene4.hotspots = [];
 
-    const RETURN_BREACH_S4_TO_S3_NAME = "ReturnBreach_S4_to_S3";
+    const RETURN_BREACH_S4_TO_S3_NAME = "ReturnFireplace_S4_to_S3";
     const hs_return_breach_s4_to_s3 = new Hotspot(
         10, canvas.height / 2, 60, 50,
         function() {
@@ -477,12 +470,10 @@ function initGame() {
     const hs_puzzle_for_g1 = new Hotspot(50, 260, 100, 50,
         function() {
             latestLogMessage = "A strange mechanism. It seems to be missing a part.";
-            console.log("A strange mechanism. It seems to be missing a part.");
         },
         "HS_Puzzle_GrayBugLocation", r1_s2.name,
         function() {
             latestLogMessage = `The Red Bug R1 fits perfectly! ${g1_s1.name} revealed!`;
-            console.log("The Red Bug R1 fits perfectly! Gray Bug G1 revealed!");
             findBugAction(g1_s1);
         },
         function(selectedItem, failureReason) {
@@ -490,10 +481,8 @@ function initGame() {
                 latestLogMessage = "Too many items selected. Try using one item.";
             } else if (selectedItem) {
                 latestLogMessage = `Using ${selectedItem.name} on the mechanism doesn't work.`;
-                console.log(`Using ${selectedItem.name} on the mechanism doesn't work.`);
             } else {
                 latestLogMessage = "This looks like it needs something specific.";
-                console.log("This looks like it needs something specific.");
             }
         },
         'bugStrongbox', g1_s1);
@@ -604,31 +593,28 @@ function initGame() {
     );
     scene2.addHotspot(hs_find_lighter);
 
-    // Return Breached Wall Hotspot from Scene 2 (Hidden Alcove) to Scene 3 - REMOVED
-    // const entryPointS2Hidden = scene2.getEntryPoint('entryFromS3_hidden');
-    // const hs_return_breach_s2_to_s3 = new Hotspot(
-    //     SCENE2_ALCOVE_X_START + 10, SCENE2_ALCOVE_Y_START + SCENE2_ALCOVE_HEIGHT - 40, 30, 30,
-    //     function() {
-    //         if (this.isEnabled) {
-    //             goToScene('scene3_id', 'entryFromS2_hidden_return');
-    //         } else {
-    //             latestLogMessage = "The wall here is smooth and unbroken.";
-    //         }
-    //     },
-    //     RETURN_BREACH_S2_TO_S3_NAME,
-    //     null, null, null,
-    //     'debugRect',
-    //     null,
-    //     "A solid wall section.",
-    //     false,
-    //     true
-    // );
-    // scene2.addHotspot(hs_return_breach_s2_to_s3); // REMOVED
+    const RETURN_PASSAGE_S2_TO_S3_NAME = "ReturnFireplace_S2_to_S3";
+    const hs_fireplace_s2_to_s3 = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, 100, 60, 50,
+        function() {
+            if (this.isEnabled) {
+                goToScene('scene3_id', 'entryFromS2_passage');
+            } else {
+                latestLogMessage = "A section of wall. Nothing remarkable.";
+            }
+        },
+        RETURN_PASSAGE_S2_TO_S3_NAME,
+        null, null, null,
+        'debugRect',
+        null,
+        "A plain wall section.",
+        false,
+        true
+    );
+    scene2.addHotspot(hs_fireplace_s2_to_s3);
 
     const navHotspot_s2_to_s1 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene1_id', 'entryFromS2'); }, "NAV_S2_to_S1", null, null, null, 'door', null);
     scene2.addHotspot(navHotspot_s2_to_s1);
-    const navHotspot_s2_to_s3 = new Hotspot(canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene3_id', 'entryFromS2'); }, "NAV_S2_to_S3", null, null, null, 'door', null);
-    scene2.addHotspot(navHotspot_s2_to_s3);
 
     scene3.bugs = []; scene3.hotspots = [];
     scene3.addBug(r2_s3);
@@ -696,8 +682,8 @@ function initGame() {
             const returnHotspotS4 = scene4Hotspots.find(h => h.name === RETURN_BREACH_S4_TO_S3_NAME);
             if (returnHotspotS4) {
                 returnHotspotS4.isEnabled = true;
-                returnHotspotS4.iconType = 'fireplaceIcon'; // Changed to fireplaceIcon
-                returnHotspotS4.exploreText = "A surprisingly intact fireplace. It seems to lead back to the Toolbox area.";
+                returnHotspotS4.iconType = 'fireplaceIcon';
+                returnHotspotS4.exploreText = "A surprisingly intact fireplace. It seems to lead back to the Toolbox area (Scene 3).";
             } else {
                 console.error("Could not find return hotspot " + RETURN_BREACH_S4_TO_S3_NAME + " in Scene 4 to enable.");
             }
@@ -719,6 +705,58 @@ function initGame() {
         "A structurally weak section of the wall. It looks like it could be breached."
     );
     scene3.addHotspot(hs_breach_s3_to_s4);
+
+    const hs_breach_s3_to_s2_passage = new Hotspot(
+        10, 100, 60, 50,
+        function() {
+            if (this.isBreached) {
+                goToScene('scene2_id', 'entryFromS3_passage_return');
+            } else {
+                latestLogMessage = "This wall near the old door connection seems brittle.";
+            }
+        },
+        "Brittle Wall to Utilities",
+        [NAME_HAMMER, NAME_CROWBAR, NAME_EXPLOSIVE_DEVICE],
+        function() {
+            let toolUsed = selectedInventoryItems[0] ? selectedInventoryItems[0].name : "a tool";
+            if (toolUsed === NAME_EXPLOSIVE_DEVICE) {
+                latestLogMessage = `The ${toolUsed} shatters the brittle wall! You can now reach the Utilities area (Scene 2).`;
+            } else {
+                latestLogMessage = `With the ${toolUsed}, you break through the brittle wall to the Utilities area (Scene 2)!`;
+            }
+            this.isBreached = true;
+            this.iconType = 'breachedWallOpening';
+            this.exploreText = "A jagged opening leads to the Utilities area. Click to enter.";
+            this.requiredItemName = null;
+
+            const scene2Hotspots = gameScenes['scene2_id'] ? gameScenes['scene2_id'].hotspots : [];
+            const returnHotspotS2 = scene2Hotspots.find(h => h.name === RETURN_PASSAGE_S2_TO_S3_NAME);
+            if (returnHotspotS2) {
+                returnHotspotS2.isEnabled = true;
+                returnHotspotS2.iconType = 'fireplaceIcon';
+                returnHotspotS2.exploreText = "A newly revealed fireplace. It seems to lead back to the Toolbox area (Scene 3).";
+            } else {
+                console.error("Could not find return hotspot " + RETURN_PASSAGE_S2_TO_S3_NAME + " in Scene 2 to enable.");
+            }
+        },
+        function(selectedItem, failureReason) {
+            if (this.isBreached) {
+                latestLogMessage = "The way is already open."; return;
+            }
+            if (failureReason && (failureReason.includes("Too many items") || failureReason.includes("No item selected"))) {
+                 latestLogMessage = "Select a single tool (Hammer, Crowbar, or Explosive Device), click 'Use Item', then click the wall.";
+            } else if (selectedItem) {
+                latestLogMessage = `The ${selectedItem.name} isn't strong enough or suitable for this wall.`;
+            } else {
+                latestLogMessage = "This wall feels brittle, but you need a tool to breach it.";
+            }
+        },
+        'crackedWall',
+        null,
+        "A section of the wall near the old door frame looks particularly brittle."
+    );
+    scene3.addHotspot(hs_breach_s3_to_s2_passage);
+
 
     const ancientCache = new Hotspot(
         canvas.width - INVENTORY_WIDTH - 100, 100, 80, 60,
@@ -752,13 +790,6 @@ function initGame() {
     );
     scene3.addHotspot(ancientCache);
 
-    // Breachable Wall from Scene 3 to Hidden part of Scene 2 - REMOVED
-    // const hs_breach_s3_to_s2_hidden = new Hotspot( ... );
-    // scene3.addHotspot(hs_breach_s3_to_s2_hidden);
-
-    const navHotspot_s3_to_s2 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene2_id', 'entryFromS3'); }, "NAV_S3_to_S2", null, null, null, 'door', null);
-    scene3.addHotspot(navHotspot_s3_to_s2);
-
     currentScene = gameScenes['scene1_id'];
     const initialEntryPoint = currentScene.getEntryPoint('initialSpawnPoint');
 
@@ -789,7 +820,6 @@ function initGame() {
                           "Red Bug R2", "Gray Bug G2",
                           SHINING_VIOLET_GEM_NAME);
     totalWinnableItems = winnableItemNames.length;
-    console.log("Winnable items:", winnableItemNames, "Total to win:", totalWinnableItems);
 
     itemCombinations.push({
         item1Name: VIOLET_FRAGMENT_ALPHA_NAME,
@@ -806,18 +836,12 @@ function initGame() {
         item2Name: lighter.name,
         resultItem: { name: explosiveDevice.name, color: explosiveDevice.color, points: 0 }
     });
-    console.log("Item combination recipes initialized:", itemCombinations);
-
-    console.log("Adventure game initialized. Detective, scenes, and all scene-specific items created.");
     lastTime = performance.now();
     gameLoop();
 }
 
 function attemptCombination() {
-    console.log("[DEBUG] Attempting combination with selected items:", selectedInventoryItems);
-
     if (selectedInventoryItems.length !== 2) {
-        console.log("[DEBUG] Combination failed: Exactly 2 items must be selected.");
         latestLogMessage = "Select exactly 2 items to combine.";
         return false;
     }
@@ -826,22 +850,12 @@ function attemptCombination() {
     const item2 = selectedInventoryItems[1];
 
     if (!item1 || !item1.name || !item2 || !item2.name) {
-        console.error("[DEBUG] ERROR: One or both selected items are invalid or missing a name property.");
         selectedInventoryItems = [];
         return false;
     }
 
     const item1Name = item1.name;
     const item2Name = item2.name;
-
-    console.log(`[DEBUG] Trying to combine: '${item1Name}' and '${item2Name}'`);
-
-    const serializableRecipes = itemCombinations.map(r => ({
-        item1Name: r.item1Name,
-        item2Name: r.item2Name,
-        resultItemName: r.resultItem ? r.resultItem.name : "UNKNOWN_RESULT_NAME"
-    }));
-    console.log("[DEBUG] Available recipes:", JSON.stringify(serializableRecipes));
 
     for (const recipe of itemCombinations) {
         const recipeItem1Name = recipe.item1Name || "UNKNOWN_RECIPE_ITEM1_NAME";
@@ -851,8 +865,6 @@ function attemptCombination() {
         const match2 = (recipeItem1Name === item2Name && recipeItem2Name === item1Name);
 
         if (match1 || match2) {
-            console.log("[DEBUG] SUCCESS: Recipe matched!");
-
             foundBugsInventory = foundBugsInventory.filter(bug => bug !== item1 && bug !== item2);
 
             score += recipe.resultItem.points;
@@ -863,12 +875,9 @@ function attemptCombination() {
             updateWinnableItemsCount();
             selectedInventoryItems = [];
             latestLogMessage = `Combined ${item1.name} & ${item2.name} into: ${newItem.name}!`;
-            console.log(`[DEBUG] Items combined successfully into: ${newItem.name}`);
             return true;
         }
     }
-
-    console.log("[DEBUG] FAILURE: No matching recipe found for the selected items.");
     latestLogMessage = `Cannot combine ${item1Name} and ${item2Name}.`;
     return false;
 }
@@ -884,7 +893,7 @@ function findBugAction(bugInstance) {
     }
 }
 
-function updateWinnableItemsCount() { // Duplicated function definition, keep only one.
+function updateWinnableItemsCount() {
     winnableItemsInInventoryCount = 0;
     for (const itemInInventory of foundBugsInventory) {
         if (winnableItemNames.includes(itemInInventory.name)) {
@@ -894,14 +903,12 @@ function updateWinnableItemsCount() { // Duplicated function definition, keep on
     if (winnableItemsInInventoryCount === totalWinnableItems) {
         if (!gameWon) {
             gameWon = true;
-            console.log("All winnable items acquired! Game Won! Final Score: " + score);
         }
     }
 }
 
 function goToScene(targetSceneId, entryPointName) {
     if (gameScenes[targetSceneId]) {
-        console.log(`Attempting to go to scene: '${targetSceneId}' using entry point: '${entryPointName}'`);
         latestLogMessage = `Traveling to ${targetSceneId.replace('_id', '')}...`;
 
         if (currentScene && currentScene.setDetective) {
@@ -922,7 +929,6 @@ function goToScene(targetSceneId, entryPointName) {
             if (currentScene.setDetective) {
                  currentScene.setDetective(detective);
             }
-            console.log(`Detective moved to entry point '${entryPointName}' in scene '${currentScene.id}' at (${detective.x}, ${detective.y})`);
         } else {
             console.warn("goToScene: Detective object not found.");
         }
@@ -989,7 +995,6 @@ canvas.addEventListener('click', function(event) {
             } else {
                 latestLogMessage = "Select a single item to inspect.";
             }
-            console.log("Inspect Item button clicked.");
             return;
         }
 
@@ -1002,7 +1007,6 @@ canvas.addEventListener('click', function(event) {
                 currentInteractionMode = 'exploring';
                 latestLogMessage = "Explore mode: Click on an object or area in the scene.";
             }
-            console.log("Explore button clicked. Mode:", currentInteractionMode);
             return;
         }
 
@@ -1017,14 +1021,12 @@ canvas.addEventListener('click', function(event) {
             } else if (currentInteractionMode === 'normal' && selectedInventoryItems.length !== 1) {
                 latestLogMessage = "Select exactly one item to use.";
             }
-            console.log("Use button clicked. Mode:", currentInteractionMode);
             return;
         }
 
         if (mouseX >= COMBINE_BUTTON_X && mouseX <= COMBINE_BUTTON_X + COMBINE_BUTTON_WIDTH &&
             mouseY >= COMBINE_BUTTON_Y && mouseY <= COMBINE_BUTTON_Y + COMBINE_BUTTON_HEIGHT) {
             if (currentInteractionMode === 'normal') {
-                console.log("Combine button clicked");
                 attemptCombination();
             } else {
                 latestLogMessage = "Cannot combine items while in another mode.";
@@ -1054,16 +1056,11 @@ canvas.addEventListener('click', function(event) {
 
             if (itemIndexInSelected > -1) {
                 selectedInventoryItems.splice(itemIndexInSelected, 1);
-                console.log("Deselected item:", clickedBugInInventory.name);
             } else {
                 selectedInventoryItems.push(clickedBugInInventory);
-                console.log("Selected item:", clickedBugInInventory.name);
             }
-            console.log("[Click Handler] selectedInventoryItems after update:", JSON.stringify(selectedInventoryItems.map(item => item.name)));
             return;
         }
-
-        console.log("Clicked inside inventory panel (not on item/button).");
         return;
     }
 
@@ -1078,26 +1075,6 @@ canvas.addEventListener('click', function(event) {
         }
     }
 
-    // Scene 2 Alcove Movement Restriction Logic - REMOVED
-    // if (currentScene.id === 'scene2_id') {
-    //     function isPointInAlcove(x, y) {
-    //         return x >= SCENE2_ALCOVE_X_START && x < SCENE2_ALCOVE_X_START + SCENE2_ALCOVE_WIDTH &&
-    //                y >= SCENE2_ALCOVE_Y_START && y < SCENE2_ALCOVE_Y_START + SCENE2_ALCOVE_HEIGHT;
-    //     }
-    //     const detectiveInAlcove = isPointInAlcove(detective.x, detective.y);
-    //     const targetInAlcove = isPointInAlcove(mouseX, mouseY);
-    //     const targetIsReturnBreachHotspot = (clickedHotspot && clickedHotspot.name === RETURN_BREACH_S2_TO_S3_NAME);
-
-    //     if (detectiveInAlcove && !targetInAlcove && !targetIsReturnBreachHotspot) {
-    //         latestLogMessage = "You must use the passage to leave the alcove.";
-    //         return;
-    //     }
-    //     if (!detectiveInAlcove && targetInAlcove && !targetIsReturnBreachHotspot) {
-    //         latestLogMessage = "You cannot reach that restricted area directly.";
-    //         return;
-    //     }
-    // }
-
     if (currentInteractionMode === 'usingItem') {
         if (clickedHotspot) {
             latestLogMessage = `Using ${selectedInventoryItems[0].name} on ${clickedHotspot.name}...`;
@@ -1107,7 +1084,7 @@ canvas.addEventListener('click', function(event) {
         } else {
             latestLogMessage = "Use cancelled. Clicked on empty ground.";
         }
-        currentInteractionMode = 'normal'; // Reset after any use attempt or click on ground
+        currentInteractionMode = 'normal';
 
     } else if (currentInteractionMode === 'exploring') {
         if (clickedHotspot) {
@@ -1138,11 +1115,9 @@ canvas.addEventListener('click', function(event) {
             const targetInteractionY = clickedHotspot.y + clickedHotspot.height / 2;
             detective.moveTo(targetInteractionX, targetInteractionY, clickedHotspot, null, isBoosted);
             latestLogMessage = `${isBoosted ? "Quickly moving" : "Moving"} to interact with ${clickedHotspot.name}...`;
-            console.log(`${isBoosted ? "Quickly moving" : "Moving"} to interact with hotspot: ${clickedHotspot.name}`);
         } else {
             detective.moveTo(mouseX, mouseY, null, null, isBoosted);
             latestLogMessage = `${isBoosted ? "Quickly moving" : "Moving"} to point (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})...`;
-            console.log(`${isBoosted ? "Quickly moving" : "Moving"} to point: (${mouseX.toFixed(0)}, ${mouseY.toFixed(0)})`);
         }
     }
 });
@@ -1170,7 +1145,7 @@ canvas.addEventListener('mousemove', function(event) {
                 if (hotspot.requiredItemName) {
                     if (currentInteractionMode === 'usingItem' &&
                         selectedInventoryItems.length === 1 &&
-                        selectedInventoryItems[0].name === hotspot.requiredItemName) { // Simplified check for single string requiredItemName
+                        selectedInventoryItems[0].name === hotspot.requiredItemName) {
                         desiredCursor = 'copy';
                     } else if (Array.isArray(hotspot.requiredItemName) && currentInteractionMode === 'usingItem' && selectedInventoryItems.length === 1 && hotspot.requiredItemName.includes(selectedInventoryItems[0].name) ){
                         desiredCursor = 'copy';
@@ -1195,5 +1170,3 @@ canvas.addEventListener('mousemove', function(event) {
 
 // Start the game
 initGame();
-
-console.log("adventure_game.js loaded and game initialized");
