@@ -398,7 +398,8 @@ function initGame() {
 
     const scene2 = new Scene('scene2_id', '#D0E0D0');
     scene2.addEntryPoint('entryFromS1', 10 + (30/2), canvas.height / 2);
-    scene2.addEntryPoint('entryS2_from_S3_fireplace', canvas.width - INVENTORY_WIDTH - 70 + 30, 100 + 25); // New for fireplace
+    scene2.addEntryPoint('entryS2_from_S3_fireplace', canvas.width - INVENTORY_WIDTH - 70 + 30, 100 + 25); // For fireplace
+    scene2.addEntryPoint('entryS2_from_S3_door', canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25 + (50/2) ); // For new door (right side of S2)
     scene2.addBackgroundText("#include <header_file.h>", 50, 100, 'bold 40px monospace', '#224422');
     scene2.addBackgroundText("namespace Utilities {", 70, 150, '30px monospace', '#224422');
     scene2.addBackgroundText("  // Checksum function?", 90, 200, '30px monospace', '#224422');
@@ -406,9 +407,10 @@ function initGame() {
     gameScenes['scene2_id'] = scene2;
 
     const scene3 = new Scene('scene3_id', '#D0D0E0');
-    scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2); // Original door entry, potentially unused
+    // scene3.addEntryPoint('entryFromS2', 10 + (30/2), canvas.height / 2); // This was the old generic S2 entry, replaced by specific ones.
     scene3.addEntryPoint('entryFromS4_breach_return', canvas.width - INVENTORY_WIDTH - 70 + 30, canvas.height / 2 + 60 + 25);
-    scene3.addEntryPoint('entryS3_from_S2_fireplace', 10 + (30/2), 100 + 25);  // New for fireplace
+    scene3.addEntryPoint('entryS3_from_S2_fireplace', 10 + (30/2), 100 + 25);  // For fireplace
+    scene3.addEntryPoint('entryS3_from_S2_door', 10, canvas.height / 2 - 25 + (50/2) ); // For new door (left side of S3)
     scene3.addBackgroundText("struct LogFile {", 50, 100, 'bold 36px monospace', '#222244');
     scene3.addBackgroundText("  char timestamp[32];", 70, 150, '28px monospace', '#222244');
     scene3.addBackgroundText("  char message[256];", 70, 200, '28px monospace', '#222244');
@@ -664,6 +666,20 @@ function initGame() {
     );
     scene1.addHotspot(navHotspot_s1_to_s4);
 
+    if (extinguisher) scene1.addBug(extinguisher); // Extinguisher bug added to Scene 1
+    const hs_find_extinguisher_s1 = new Hotspot( // Renamed to avoid conflict if old one wasn't fully removed by a previous step by mistake
+        50, 50, 40, 60, // Positioned in Scene 1
+        function() {
+            findBugAction(extinguisher);
+            latestLogMessage = "You found a Fire Extinguisher!";
+            this.isEnabled = false; // Use 'this' to refer to the hotspot instance
+            this.exploreText = "An empty mounting bracket for an extinguisher.";
+        },
+        "Fire Extinguisher Case", null, null, null, 'extinguisherIcon', extinguisher,
+        "A fire extinguisher is mounted on the wall here. Could be handy!"
+    );
+    scene1.addHotspot(hs_find_extinguisher_s1);
+
     const hs_decorative_fireplace_s1 = new Hotspot(
         350, 150, 60, 50, // Position in Scene 1
         function() { // onClickAction
@@ -757,6 +773,13 @@ function initGame() {
     const navHotspot_s2_to_s1 = new Hotspot(10, canvas.height / 2 - 25, 60, 50, function() { goToScene('scene1_id', 'entryFromS2'); }, "NAV_S2_to_S1", null, null, null, 'door', null);
     scene2.addHotspot(navHotspot_s2_to_s1);
 
+    const navHotspot_s2_to_s3_door = new Hotspot(
+        canvas.width - INVENTORY_WIDTH - 70, canvas.height / 2 - 25, 60, 50,
+        function() { goToScene('scene3_id', 'entryS3_from_S2_door'); },
+        "Door to Toolbox", null, null, null, 'door', null, "A standard door to the Toolbox area."
+    );
+    scene2.addHotspot(navHotspot_s2_to_s3_door);
+
     scene3.bugs = []; scene3.hotspots = [];
     scene3.addBug(r2_s3);
     scene3.addBug(g2_s3);
@@ -795,19 +818,19 @@ function initGame() {
     );
     scene3.addHotspot(hs_find_gas_bottle);
 
-    if (extinguisher) scene3.addBug(extinguisher);
-    const hs_find_extinguisher = new Hotspot(
-        250, 70, 40, 60, // Positioned somewhere in Scene 3
-        function() {
-            findBugAction(extinguisher);
-            latestLogMessage = "You found a Fire Extinguisher!";
-            hs_find_extinguisher.isEnabled = false;
-            hs_find_extinguisher.exploreText = "An empty mounting bracket for an extinguisher.";
-        },
-        "Fire Extinguisher Case", null, null, null, 'extinguisherIcon', extinguisher,
-        "A fire extinguisher is mounted on the wall here."
-    );
-    scene3.addHotspot(hs_find_extinguisher);
+    // if (extinguisher) scene3.addBug(extinguisher); // Moved to Scene 1
+    // const hs_find_extinguisher = new Hotspot( // Moved to Scene 1
+    //     250, 70, 40, 60,
+    //     function() {
+    //         findBugAction(extinguisher);
+    //         latestLogMessage = "You found a Fire Extinguisher!";
+    //         hs_find_extinguisher.isEnabled = false;
+    //         hs_find_extinguisher.exploreText = "An empty mounting bracket for an extinguisher.";
+    //     },
+    //     "Fire Extinguisher Case", null, null, null, 'extinguisherIcon', extinguisher,
+    //     "A fire extinguisher is mounted on the wall here."
+    // );
+    // scene3.addHotspot(hs_find_extinguisher); // Moved to Scene 1
 
     scene4.addEntryPoint('entryFromS3_archive', 10 + (30/2), canvas.height / 2);
     const hs_breach_s3_to_s4 = new Hotspot(
@@ -1014,6 +1037,13 @@ function initGame() {
         "An ancient, heavily sealed cache. It has a vibrant, gem-shaped indentation."
     );
     scene3.addHotspot(ancientCache);
+
+    const navHotspot_s3_to_s2_door = new Hotspot(
+        10, canvas.height / 2 - 25, 60, 50,
+        function() { goToScene('scene2_id', 'entryS2_from_S3_door'); },
+        "Door to Utilities", null, null, null, 'door', null, "A standard door to the Utilities area."
+    );
+    scene3.addHotspot(navHotspot_s3_to_s2_door);
 
     currentScene = gameScenes['scene1_id'];
     const initialEntryPoint = currentScene.getEntryPoint('initialSpawnPoint');
