@@ -863,8 +863,8 @@ function initGame() {
     scene3.addHotspot(hs_breach_s3_to_s4);
 
     // hs_breach_s3_to_s2_passage REMOVED - will be replaced by fireplace logic below
-    const S3_S2_FIREPLACE_S3_NAME = "S3_S2_Fireplace_S3";
-    const S3_S2_FIREPLACE_S2_NAME = "S3_S2_Fireplace_S2";
+    // const S3_S2_FIREPLACE_S3_NAME = "S3_S2_Fireplace_S3"; // Already defined at the top of initGame
+    // const S3_S2_FIREPLACE_S2_NAME = "S3_S2_Fireplace_S2"; // Already defined at the top of initGame
 
     const hs_s3_s2_fireplace_s3 = new Hotspot(
         10, 100, 60, 50, // Position similar to old breach
