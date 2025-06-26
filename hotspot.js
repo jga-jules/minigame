@@ -39,18 +39,21 @@ class Hotspot {
     trigger(setMessageCallback = (msg) => { console.warn("Log (from Hotspot default callback):", msg); }, currentInteractionMode = 'normal') {
         if (!this.isEnabled) return;
 
-        if (this.requiredItemName) {
-            if (currentInteractionMode !== 'usingItem') {
-                setMessageCallback("You need to be in 'Use' mode. Select an item, then 'Use Item', then click the hotspot.");
-                return;
-            }
+        // Priority 1: If it's a normal click and there's a click action, do it.
+        // This allows navigation through an unlit fireplace even if it technically still has Lighter as a requiredItemName.
+        if (currentInteractionMode === 'normal' && typeof this.onClickAction === 'function') {
+            this.onClickAction();
+            return;
+        }
 
+        // Priority 2: If it's an item interaction (mode is 'usingItem') and the hotspot expects items.
+        if (this.requiredItemName && currentInteractionMode === 'usingItem') {
             let itemToUse = null;
             if (selectedInventoryItems && selectedInventoryItems.length === 1) {
                 itemToUse = selectedInventoryItems[0];
             } else {
-                const Rreason = selectedInventoryItems.length > 1 ? "multiple items selected" : "no item selected";
-                const message = `Hotspot '${this.name}': 'Use' mode active, but ${Rreason}. Select only one item to use.`;
+                const reason = selectedInventoryItems.length > 1 ? "multiple items selected" : "no item selected";
+                const message = `Hotspot '${this.name}': 'Use' mode active, but ${reason}. Select only one item to use.`;
                 setMessageCallback(message);
                 if (typeof this.onUseItemFailureAction === 'function') {
                     this.onUseItemFailureAction(null, selectedInventoryItems.length > 1 ? "Too many items selected while using" : "No item selected while using");
@@ -73,8 +76,8 @@ class Hotspot {
                 if (typeof this.onUseItemSuccessAction === 'function') {
                     this.onUseItemSuccessAction();
                 } else {
-                    const message = `${this.name}: Used ${itemToUse.name} successfully, but no specific success action defined.`;
-                    setMessageCallback(message);
+                    // This case should ideally not be hit if an item is required; a success action should be defined.
+                    setMessageCallback(`${this.name}: Used ${itemToUse.name} successfully, but no specific success action defined.`);
                 }
             } else {
                 if (typeof this.onUseItemFailureAction === 'function') {
@@ -83,11 +86,40 @@ class Hotspot {
                      setMessageCallback(`Cannot use ${itemToUse.name} on ${this.name}. It's not the right item.`);
                 }
             }
-        } else if (typeof this.onClickAction === 'function') {
-            this.onClickAction();
+            return; // Item use attempt is complete.
+        }
+
+        // Priority 3: If it's a normal click, there was NO onClickAction (or it wouldn't have returned at P1),
+        // AND it requires an item, then prompt to use an item.
+        if (this.requiredItemName && currentInteractionMode === 'normal' && !this.onClickAction) {
+             setMessageCallback(`This requires an item. Select an item, then 'Use Item', then click here.`);
+             return;
+        }
+
+        // Fallback: No specific action defined for the current mode / setup or other unhandled cases.
+        // This includes:
+        // - Normal click, no onClickAction, no requiredItemName.
+        // - 'usingItem' mode, but no requiredItemName for this hotspot.
+        if (currentInteractionMode === 'normal' && !this.onClickAction && !this.requiredItemName) {
+            setMessageCallback(`${this.name}: Clicked, but has no defined action.`);
+        } else if (currentInteractionMode === 'usingItem' && !this.requiredItemName) {
+            setMessageCallback(`You can't use an item on ${this.name} as it doesn't require one.`);
+        } else if (currentInteractionMode === 'normal' && this.requiredItemName && this.onClickAction) {
+            // This case should theoretically be caught by Priority 1 if onClickAction is intended for normal clicks.
+            // If onClickAction is meant for *after* an item use, then this indicates a logic setup issue for the hotspot.
+            // For now, assume if onClickAction exists, it's for normal clicks.
+            // If we reach here, it implies the onClickAction was present but not executed (which P1 should prevent).
+            // Or, if P1 was removed, this would be the prompt for item use.
+            // Given P1 exists, this specific branch might be redundant or indicate an edge case.
+            // Defaulting to "needs item" if it has one, and no click action was run.
+            setMessageCallback(`This requires an item. Select an item, then 'Use Item', then click here.`);
         } else {
-            const message = `${this.name}: Clicked, but has no defined action.`;
-            setMessageCallback(message);
+            // Generic fallback if no other condition matched.
+            // setMessageCallback(`${this.name}: Interaction not fully defined for this state.`);
+            // Let's keep the original "no defined action" for simple non-item-requiring, non-clickable hotspots.
+             if (!this.onClickAction && !this.requiredItemName) {
+                 setMessageCallback(`${this.name}: Clicked, but has no defined action.`);
+             }
         }
     }
 

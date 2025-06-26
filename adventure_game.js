@@ -907,21 +907,25 @@ function initGame() {
             if (itemUsed.name === "Extinguisher" && this.isLit) {
                 this.isLit = false;
                 this.iconType = 'fireplaceIcon';
+                this.requiredItemName = [NAME_LIGHTER];
                 this.exploreText = "The fire is out! A dark passage is revealed... smells faintly of digital soot and old code.";
                 latestLogMessage = "With a *PSSSHHHH*, you douse the flames. A passage to the Utilities area is clear!";
                 if (counterpartHotspotS2) {
                     counterpartHotspotS2.isLit = false;
                     counterpartHotspotS2.iconType = 'fireplaceIcon';
+                    counterpartHotspotS2.requiredItemName = [NAME_LIGHTER];
                     counterpartHotspotS2.exploreText = this.exploreText;
                 }
             } else if (itemUsed.name === "Lighter" && !this.isLit) {
                 this.isLit = true;
                 this.iconType = 'fireplaceWithFireIcon';
+                this.requiredItemName = [NAME_EXTINGUISHER, NAME_LIGHTER];
                 this.exploreText = "A roaring fire blocks this old fireplace. Seems impassable.";
                 latestLogMessage = "You reignite the fireplace. The passage is now blocked by flames.";
                  if (counterpartHotspotS2) {
                     counterpartHotspotS2.isLit = true;
                     counterpartHotspotS2.iconType = 'fireplaceWithFireIcon';
+                    counterpartHotspotS2.requiredItemName = [NAME_EXTINGUISHER, NAME_LIGHTER];
                     counterpartHotspotS2.exploreText = this.exploreText;
                 }
             } else if (itemUsed.name === "Extinguisher" && !this.isLit) {
@@ -965,21 +969,25 @@ function initGame() {
             if (itemUsed.name === "Extinguisher" && this.isLit) {
                 this.isLit = false;
                 this.iconType = 'fireplaceIcon';
+                this.requiredItemName = [NAME_LIGHTER];
                 this.exploreText = "The fire is out! A dark passage is revealed... smells faintly of digital soot and old code.";
                 latestLogMessage = "With a *WHOOSH* of cold spray, the fire is extinguished. A passage to the Toolbox is clear!";
                 if (counterpartHotspotS3) {
                     counterpartHotspotS3.isLit = false;
                     counterpartHotspotS3.iconType = 'fireplaceIcon';
+                    counterpartHotspotS3.requiredItemName = [NAME_LIGHTER];
                     counterpartHotspotS3.exploreText = this.exploreText;
                 }
             } else if (itemUsed.name === "Lighter" && !this.isLit) {
                 this.isLit = true;
                 this.iconType = 'fireplaceWithFireIcon';
+                this.requiredItemName = [NAME_EXTINGUISHER, NAME_LIGHTER];
                 this.exploreText = "A roaring fire blocks this old fireplace. Seems impassable.";
                 latestLogMessage = "You light the fireplace. The passage is now blocked by flames.";
                 if (counterpartHotspotS3) {
                     counterpartHotspotS3.isLit = true;
                     counterpartHotspotS3.iconType = 'fireplaceWithFireIcon';
+                    counterpartHotspotS3.requiredItemName = [NAME_EXTINGUISHER, NAME_LIGHTER];
                     counterpartHotspotS3.exploreText = this.exploreText;
                 }
             } else if (itemUsed.name === "Extinguisher" && !this.isLit) {
